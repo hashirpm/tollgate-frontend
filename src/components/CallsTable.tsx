@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Call } from "@/lib/api";
 import { basescanTx, dateTime, shortAddr, usdc } from "@/lib/format";
 import { PayerCell } from "./FeedList";
+import { VerificationBadge } from "./Onchain";
 import { CallStatusBadge } from "./StatusBadge";
 
 const COLS = "grid-cols-[120px_minmax(150px,1.3fr)_minmax(130px,1fr)_90px_minmax(170px,1fr)_130px]";
@@ -33,6 +34,9 @@ export function CallsTable({ rows }: { rows: Call[] }) {
               {r.status === "failed_upstream" && r.upstreamStatus != null && (
                 <div className="mt-0.5 text-[11px] text-ink-3">upstream {r.upstreamStatus}</div>
               )}
+              <div>
+                <VerificationBadge verification={r.verification} block={r.onchainBlock} />
+              </div>
             </div>
             <div className="text-right">
               {r.txHash ? (

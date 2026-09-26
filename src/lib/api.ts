@@ -203,6 +203,63 @@ export interface Call {
   upstreamStatus: number | null;
   /** Latest Intercepta screening of this payer, null if never screened. */
   payerVerdict: Verdict | null;
+  /** The settlement checked against USDC transfers MultiBaas indexed; null when verification is off or unsettled. */
+  verification: Verification | null;
+  onchainBlock: number | null;
+}
+
+// ---------- onchain verification (Curvegrid MultiBaas, through the gateway) ----------
+
+/**
+ * verified: the USDC transfer landed for the recorded amount · mismatch: a different amount ·
+ * confirming: not yet, under 2 minutes old · unverified: still missing after that ·
+ * untracked: older than when MultiBaas started indexing.
+ */
+export type Verification = "verified" | "mismatch" | "confirming" | "unverified" | "untracked";
+export type VerificationStatus = "ok" | "degraded" | "off";
+
+export interface UnbackedPayment {
+  callId: string;
+  endpointId: string;
+  endpointName: string;
+  txHash: string | null;
+  t: number;
+  /** unverified: the recorded amount; mismatch: recorded vs onchain. */
+  amountUsd: string;
+  onchainUsd: string | null;
+}
+
+export interface ExternalTransfer {
+  txHash: string;
+  from: string;
+  amountUsd: string;
+  t: number;
+}
+
+export interface Reconciliation {
+  status: VerificationStatus;
+  error: string | null;
+  recordedAtomic: bigint;
+  onchainAtomic: bigint;
+  verifiedAtomic: bigint;
+  externalAtomic: bigint;
+  /** Share of checkable payments that are verified; null when none could be checked yet. */
+  verifiedPct: number | null;
+  counts: Record<Verification, number>;
+  unverified: UnbackedPayment[];
+  mismatched: UnbackedPayment[];
+  external: ExternalTransfer[];
+  lastBlock: { number: number; t: number } | null;
+}
+
+export type ActionSeverity = "critical" | "warning" | "info";
+
+export interface SellerAction {
+  id: string;
+  severity: ActionSeverity;
+  title: string;
+  detail: string;
+  cta: { label: string; href: string } | null;
 }
 
 // ---------- screening (Intercepta, through the gateway's POST /screen) ----------
@@ -396,6 +453,55 @@ function toCall(r: Raw): Call {
     txHash: r.tx_hash ? str(r.tx_hash) : null,
     upstreamStatus: r.upstream_status == null ? null : num(r.upstream_status),
     payerVerdict: verdictOf(r.payer_verdict),
+    verification: verificationOf(r.verification),
+    onchainBlock: r.onchain_block == null ? null : num(r.onchain_block),
+  };
+}
+
+const VERIFICATIONS: Verification[] = ["verified", "mismatch", "confirming", "unverified", "untracked"];
+
+function verificationOf(v: unknown): Verification | null {
+  return VERIFICATIONS.includes(v as Verification) ? (v as Verification) : null;
+}
+
+function toReconciliation(r: Raw): Reconciliation {
+  const counts = (r.counts ?? {}) as Raw;
+  const unbacked = (u: Raw): UnbackedPayment => ({
+    callId: str(u.call_id),
+    endpointId: str(u.endpoint_id),
+    endpointName: str(u.endpoint_name, str(u.endpoint_id)),
+    txHash: u.tx_hash ? str(u.tx_hash) : null,
+    t: toMs(u.created_at),
+    amountUsd: str(u.amount_usd ?? u.recorded_usd, "0"),
+    onchainUsd: u.onchain_usd == null ? null : str(u.onchain_usd),
+  });
+  const last = r.last_block as Raw | null | undefined;
+  const status = str(r.status, "off");
+  return {
+    status: status === "ok" || status === "degraded" ? status : "off",
+    error: r.error ? str(r.error) : null,
+    recordedAtomic: big(r.recorded_atomic),
+    onchainAtomic: big(r.onchain_atomic),
+    verifiedAtomic: big(r.verified_atomic),
+    externalAtomic: big(r.external_atomic),
+    verifiedPct: r.verified_pct == null ? null : num(r.verified_pct),
+    counts: Object.fromEntries(VERIFICATIONS.map((v) => [v, num(counts[v])])) as Record<Verification, number>,
+    unverified: list(r.unverified).map(unbacked),
+    mismatched: list(r.mismatched).map(unbacked),
+    external: list(r.external).map((t) => ({ txHash: str(t.tx_hash), from: str(t.from), amountUsd: str(t.amount_usd, "0"), t: toMs(t.block_time) })),
+    lastBlock: last ? { number: num(last.number), t: toMs(last.time) } : null,
+  };
+}
+
+function toAction(r: Raw): SellerAction {
+  const severity = str(r.severity);
+  const cta = r.cta as Raw | null | undefined;
+  return {
+    id: str(r.id),
+    severity: severity === "critical" || severity === "warning" ? severity : "info",
+    title: str(r.title),
+    detail: str(r.detail),
+    cta: cta && cta.href ? { label: str(cta.label, "Open"), href: str(cta.href) } : null,
   };
 }
 
@@ -460,6 +566,8 @@ export interface FeedQuery {
   before?: string | number;
   endpoint_id?: string;
   status?: CallStatus;
+  /** Settled calls no onchain transfer backs. */
+  verification?: "unverified";
   limit?: number;
 }
 
@@ -514,6 +622,13 @@ export const api = {
     request<Raw>("GET", "/api/screen/payout").then(
       (d): PayoutScreening => ({ ...toScreening(d), address: str(d.address), poisoned: typeof d.poisoned === "boolean" ? d.poisoned : null }),
     ),
+
+  reconcile: (range: "24h" | "30d" = "24h") => request<Raw>("GET", "/api/reconcile", { query: { range } }).then(toReconciliation),
+  actions: () =>
+    request<Raw>("GET", "/api/actions").then((d) => ({
+      actions: list(d.actions).map(toAction),
+      verification: (["ok", "degraded"].includes(str(d.verification)) ? str(d.verification) : "off") as VerificationStatus,
+    })),
 
   catalog: () => request<unknown>("GET", "/catalog", { auth: false }).then((d) => list(d, "endpoints", "apis").map(toCatalogItem)),
 };

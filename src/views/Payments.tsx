@@ -1,12 +1,14 @@
 "use client";
 
-import { Receipt, ShieldCheck, ShieldX } from "lucide-react";
+import { Receipt, ShieldCheck, ShieldX, TriangleAlert } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { CallsTable } from "@/components/CallsTable";
 import { ScreeningsTable } from "@/components/Screening";
 import { EmptyState, ErrorState, PageHeader, Skeleton, Spinner } from "@/components/ui";
 import { useEndpoints } from "@/hooks/useEndpoints";
 import { usePayments } from "@/hooks/useFeed";
+import { useReconcile } from "@/hooks/useOnchain";
 import { useScreenings } from "@/hooks/useScreening";
 import type { CallStatus } from "@/lib/api";
 import { usdc } from "@/lib/format";
@@ -21,10 +23,15 @@ export function PaymentsPage() {
   const [endpointId, setEndpointId] = useState<string>("");
   const [status, setStatus] = useState<CallStatus | undefined>(undefined);
   const [blocked, setBlocked] = useState(false);
+  // the Action center links here with ?verification=unverified
+  const [unverified, setUnverified] = useState(useSearchParams().get("verification") === "unverified");
   const screenings = useScreenings("block");
   const blockedCount = screenings.data?.pages[0]?.blocked30d ?? 0;
+  const reconcile = useReconcile("24h");
+  const onchainOn = reconcile.data ? reconcile.data.status !== "off" : unverified;
+  const unbackedCount = reconcile.data ? reconcile.data.counts.unverified + reconcile.data.counts.mismatch : 0;
   const endpoints = useEndpoints();
-  const pages = usePayments({ endpointId: endpointId || undefined, status });
+  const pages = usePayments({ endpointId: endpointId || undefined, status: unverified ? undefined : status, unverified });
   const rows = pages.data?.pages.flat() ?? [];
   const settled = rows.reduce((s, r) => (r.status === "settled" ? s + r.amountAtomic : s), 0n);
 
@@ -39,15 +46,30 @@ export function PaymentsPage() {
               <button
                 key={s.label}
                 className="chip"
-                data-active={!blocked && status === s.id}
+                data-active={!blocked && !unverified && status === s.id}
                 onClick={() => {
                   setBlocked(false);
+                  setUnverified(false);
                   setStatus(s.id);
                 }}
               >
                 {s.label}
               </button>
             ))}
+            {onchainOn && (
+              <button
+                className="chip gap-1.5"
+                data-active={!blocked && unverified}
+                onClick={() => {
+                  setBlocked(false);
+                  setUnverified(true);
+                }}
+                title="Settled payments with no matching USDC transfer onchain, or a different amount"
+              >
+                <TriangleAlert className="size-3.5" /> Not onchain
+                {unbackedCount > 0 && <span className="num rounded-full bg-bad/10 px-1.5 text-[11px] text-bad-text">{unbackedCount}</span>}
+              </button>
+            )}
             <button className="chip gap-1.5" data-active={blocked} onClick={() => setBlocked(true)}>
               <ShieldX className="size-3.5" /> Blocked by Intercepta
               {blockedCount > 0 && <span className="num rounded-full bg-bad/10 px-1.5 text-[11px] text-bad-text">{blockedCount}</span>}
@@ -78,8 +100,12 @@ export function PaymentsPage() {
             <ErrorState error={pages.error} onRetry={() => pages.refetch()} />
           </div>
         ) : rows.length === 0 ? (
-          <EmptyState icon={<Receipt className="size-5" />} title="No calls match">
-            {endpointId || status ? "Try clearing the filters." : "Paid calls show up here once buyers start using your endpoints."}
+          <EmptyState icon={<Receipt className="size-5" />} title={unverified ? "Nothing missing onchain" : "No calls match"}>
+            {unverified
+              ? "Every settled payment checked so far has a matching USDC transfer onchain."
+              : endpointId || status
+                ? "Try clearing the filters."
+                : "Paid calls show up here once buyers start using your endpoints."}
           </EmptyState>
         ) : (
           <CallsTable rows={rows} />
