@@ -40,7 +40,9 @@ export function useSession() {
       const message = createSiweMessage({
         address,
         chainId: CHAIN.id,
-        domain: location.host,
+        // The gateway checks this against its own host until it honors
+        // x-forwarded-host, so dev against a remote gateway signs for that host.
+        domain: process.env.NEXT_PUBLIC_SIWE_DOMAIN || location.host,
         uri: location.origin,
         nonce,
         version: "1",

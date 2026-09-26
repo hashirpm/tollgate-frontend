@@ -18,8 +18,10 @@ interface GatewayEnv {
   GATEWAY_URL?: string;
 }
 
-// Hop-by-hop headers (and Host) must not be forwarded.
-const STRIP_REQUEST = ["host", "connection", "keep-alive", "proxy-connection", "transfer-encoding", "te", "trailer", "upgrade", "content-length"];
+// Hop-by-hop headers (and Host) must not be forwarded. Nor accept-encoding:
+// fetch() negotiates its own, and passing the browser's through (zstd) gets
+// back a body fetch() can't decode.
+const STRIP_REQUEST = ["host", "connection", "keep-alive", "proxy-connection", "transfer-encoding", "te", "trailer", "upgrade", "content-length", "accept-encoding"];
 // fetch() already decoded the body, so the upstream encoding/length no longer apply.
 const STRIP_RESPONSE = ["content-encoding", "content-length", "transfer-encoding", "connection"];
 
