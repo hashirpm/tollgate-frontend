@@ -57,7 +57,7 @@ live in the browser, and the app renders once it's mounted (see
 
 ## Auth
 
-1. Connect (injected / EIP-6963 wallets, or Coinbase Wallet). Wrong chain → switch prompt.
+1. Connect a browser wallet (injected / EIP-6963: MetaMask, Rabby, …). Wrong chain → switch prompt.
 2. `GET /api/auth/nonce` → SIWE message via viem `createSiweMessage` (domain `location.host`, chain 84532) → `signMessage` → `POST /api/auth/verify` → `{ token }`.
 3. Token stored in `localStorage` under `tollgate:token:<address>`, sent as `Authorization: Bearer`.
 4. A 401, an account change or a chain change clears it and returns to sign-in. Disconnect clears it.

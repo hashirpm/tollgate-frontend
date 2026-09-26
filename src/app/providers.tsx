@@ -40,9 +40,13 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <SessionWatcher />
         {mounted ? (
-          children
+          <>
+            {/* inside the gate: wagmi's <Hydrate> restores wallet state during its
+                first render, and nothing may be subscribed to it at that point */}
+            <SessionWatcher />
+            {children}
+          </>
         ) : (
           <div className="grid min-h-screen place-items-center text-ink-2">
             <Spinner className="size-6" />

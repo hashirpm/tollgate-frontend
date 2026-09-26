@@ -1,13 +1,30 @@
 "use client";
 
-import { ArrowRight, Blocks, FlaskConical, PenLine, Radio, Wallet } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Bot, KeyRound, X, Zap } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
-import { useConnect, useConnectors, useSwitchChain } from "wagmi";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
+import s from "@/components/landing/landing.module.css";
+import { TollScene } from "@/components/landing/TollScene";
+import { SignInPanel } from "@/components/SignInPanel";
 import { Logo, Spinner } from "@/components/ui";
 import { useSession } from "@/lib/auth";
 import { CHAIN } from "@/lib/config";
-import { shortAddr } from "@/lib/format";
+
+const WORDS = ["your API.", "your model.", "your data.", "every call."];
+
+// decorative marquee: the kinds of things people put a toll on
+const ROUTES = [
+  ["GET", "/v1/forecast", "0.01"],
+  ["POST", "/v1/messages", "0.05"],
+  ["GET", "/quote/IBM", "0.015"],
+  ["POST", "/embed", "0.002"],
+  ["GET", "/gas/oracle", "0.005"],
+  ["POST", "/search", "0.02"],
+  ["GET", "/pools/tvl", "0.02"],
+  ["POST", "/transcribe", "0.03"],
+  ["GET", "/proposals", "0.01"],
+  ["POST", "/ocr", "0.04"],
+] as const;
 
 export function ConnectPage() {
   const session = useSession();
@@ -16,184 +33,187 @@ export function ConnectPage() {
   // only same-site paths, never "//evil.com"
   const from = param && param.startsWith("/") && !param.startsWith("//") ? param : "/dashboard";
   const signedIn = session.status === "signed-in";
+  // bounced here from a protected page → go straight to the sign-in dialog
+  const [open, setOpen] = useState(!!param);
 
   useEffect(() => {
     if (signedIn) router.replace(from);
   }, [signedIn, from, router]);
 
-  return (
-    <div className="mx-auto flex min-h-screen max-w-[1200px] flex-col px-4 py-6 sm:px-8">
-      <header className="flex items-center justify-between">
-        <Logo />
-        <a href="https://x402.org" target="_blank" rel="noreferrer" className="text-sm text-ink-2 hover:text-ink">
-          What is x402?
-        </a>
-      </header>
-
-      <main className="grid flex-1 items-center gap-12 py-12 lg:grid-cols-[1.1fr_1fr]">
-        <section>
-          <span className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-xs text-ink-2 shadow-sm">
-            <span className="size-1.5 rounded-full bg-[#0052ff]" /> Settles in USDC on {CHAIN.name}
-          </span>
-          <h1 className="mt-6 text-4xl leading-[1.05] font-semibold tracking-tight sm:text-[56px]">
-            Put a toll on your API.
-            <br />
-            <span className="text-ink-3">Let AI agents pay per call.</span>
-          </h1>
-          <p className="mt-5 max-w-lg text-base leading-relaxed text-ink-2">
-            Tollgate sits in front of any HTTP API. Claude and other agents pay per request over x402, your upstream key never
-            leaves the gateway, and every payment lands in your wallet.
-          </p>
-
-          <div className="mt-10 grid max-w-xl gap-3 sm:grid-cols-3">
-            {[
-              { Icon: PenLine, t: "Add an endpoint", d: "URL, key and a price" },
-              { Icon: FlaskConical, t: "Test it", d: "one call goes live" },
-              { Icon: Radio, t: "Get paid", d: "watch calls arrive" },
-            ].map(({ Icon, t, d }, i) => (
-              <div key={t} className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <Icon className="size-4 text-accent" />
-                  <span className="num text-xs text-ink-3">0{i + 1}</span>
-                </div>
-                <div className="mt-3 text-sm font-medium">{t}</div>
-                <div className="text-xs text-ink-3">{d}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="card relative overflow-hidden p-6 sm:p-8">
-          <div className="pointer-events-none absolute -top-24 -right-24 size-64 rounded-full bg-lime/40 blur-3xl" />
-          <div className="relative">
-            <SignInPanel session={session} />
-          </div>
-        </section>
-      </main>
-    </div>
-  );
-}
-
-function SignInPanel({ session }: { session: ReturnType<typeof useSession> }) {
-  const { status, address } = session;
-
-  if (status === "reconnecting" || status === "checking") {
-    return (
-      <div className="flex min-h-64 flex-col items-center justify-center gap-3 text-sm text-ink-2">
-        <Spinner className="size-6" />
-        {status === "checking" ? "Checking your session…" : "Reconnecting your wallet…"}
-      </div>
-    );
-  }
+  const busy = session.status === "reconnecting" || session.status === "checking";
+  const cta =
+    session.status === "signed-out" ? "Sign in to your dashboard" : session.status === "wrong-chain" ? "Switch network" : "Connect wallet";
 
   return (
-    <>
-      <Steps status={status} />
-      {status === "disconnected" && <ConnectWallet />}
-      {status === "wrong-chain" && <SwitchNetwork />}
-      {status === "signed-out" && (
-        <div>
-          <h2 className="text-xl font-semibold">Sign in</h2>
-          <p className="mt-1 text-sm text-ink-2">
-            Connected as <span className="font-mono text-ink">{shortAddr(address)}</span>. Sign a message to prove it’s your wallet. It’s
-            free and sends no transaction.
-          </p>
-          <button className="btn btn-primary mt-6 h-12 w-full text-[15px]" disabled={session.signingIn} onClick={() => session.signIn()}>
-            {session.signingIn ? <Spinner /> : <PenLine className="size-4" />}
-            {session.signingIn ? "Check your wallet…" : "Sign in with Ethereum"}
-          </button>
-          {session.signInError && <p className="mt-3 text-sm text-bad-text">{friendlyError(session.signInError)}</p>}
-          <button className="mt-4 w-full text-center text-sm text-ink-3 hover:text-ink" onClick={session.signOut}>
-            Use a different wallet
-          </button>
-        </div>
-      )}
-    </>
-  );
-}
+    <div className={`relative min-h-screen overflow-hidden ${s.motion}`}>
+      <Backdrop />
 
-function Steps({ status }: { status: string }) {
-  const step = status === "disconnected" ? 0 : status === "wrong-chain" ? 1 : 2;
-  const labels = ["Connect", "Network", "Sign in"];
-  return (
-    <ol className="mb-8 flex items-center gap-2 text-xs">
-      {labels.map((l, i) => (
-        <li key={l} className="flex items-center gap-2">
-          <span
-            className={`grid size-6 place-items-center rounded-full font-medium ${
-              i < step ? "bg-ink text-white" : i === step ? "bg-lime text-lime-ink" : "bg-surface-2 text-ink-3"
-            }`}
-          >
-            {i + 1}
-          </span>
-          <span className={i === step ? "text-ink" : "text-ink-3"}>{l}</span>
-          {i < labels.length - 1 && <span className="mx-1 h-px w-6 bg-line-strong" />}
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function ConnectWallet() {
-  const connectors = useConnectors();
-  const { connect, isPending, variables, error } = useConnect();
-  // EIP-6963 wallets (MetaMask, Rabby…) show up by name; hide the generic
-  // "Injected" entry when a named one exists.
-  const named = connectors.filter((c) => c.id !== "injected");
-  const list = named.some((c) => c.type === "injected") ? named : connectors;
-
-  return (
-    <div>
-      <h2 className="text-xl font-semibold">Connect your wallet</h2>
-      <p className="mt-1 text-sm text-ink-2">Payments for your endpoints settle to this address.</p>
-      <div className="mt-6 space-y-2">
-        {list.map((c) => {
-          const busy = isPending && variables?.connector && "id" in variables.connector && variables.connector.id === c.id;
-          return (
-            <button
-              key={c.uid}
-              onClick={() => connect({ connector: c, chainId: CHAIN.id })}
-              disabled={isPending}
-              className="flex h-14 w-full items-center gap-3 rounded-2xl border border-line-strong bg-surface px-4 text-left text-sm font-medium transition-colors hover:border-ink-3 hover:bg-surface-2"
+      <div className="relative mx-auto flex min-h-screen max-w-[1280px] flex-col px-4 sm:px-8">
+        <header className="flex items-center justify-between py-5">
+          <Logo />
+          <nav className="flex items-center gap-1 sm:gap-2">
+            <a
+              href="https://x402.org"
+              target="_blank"
+              rel="noreferrer"
+              className="hidden items-center gap-1 rounded-full px-3 py-2 text-sm text-ink-2 transition-colors hover:bg-surface hover:text-ink sm:inline-flex"
             >
-              {c.icon ? (
-                // wallet icons are data: URIs from EIP-6963; next/image adds nothing here
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={c.icon} alt="" className="size-7 rounded-lg" />
-              ) : (
-                <span className="grid size-7 place-items-center rounded-lg bg-surface-2">
-                  {c.id === "coinbaseWalletSDK" ? <Blocks className="size-4" /> : <Wallet className="size-4" />}
-                </span>
-              )}
-              <span className="flex-1">{c.id === "injected" ? "Browser wallet" : c.name}</span>
-              {busy ? <Spinner /> : <ArrowRight className="size-4 text-ink-3" />}
+              x402 protocol <ArrowUpRight className="size-3.5" />
+            </a>
+            <button onClick={() => setOpen(true)} className="btn btn-ghost h-10 bg-surface/70 backdrop-blur" disabled={busy}>
+              {busy ? <Spinner /> : null}
+              {session.status === "signed-out" ? "Sign in" : "Connect"}
             </button>
-          );
-        })}
+          </nav>
+        </header>
+
+        <main className="grid flex-1 items-center gap-14 pt-8 pb-10 lg:grid-cols-[1.02fr_1fr] lg:gap-10 lg:pt-4">
+          <section>
+            <div className={s.rise} style={{ "--i": 0 } as CSSProperties}>
+              <span className="inline-flex items-center gap-2 rounded-full border border-line bg-surface/80 py-1 pr-3 pl-1 text-xs text-ink-2 shadow-sm backdrop-blur">
+                <span className="rounded-full bg-ink px-2 py-0.5 font-mono text-[10px] font-semibold whitespace-nowrap text-lime">HTTP 402</span>
+                <span>
+                  Pay-per-call for AI agents<span className="hidden sm:inline">, settled in USDC on {CHAIN.name}</span>
+                </span>
+              </span>
+            </div>
+
+            <h1 className="mt-7 text-[44px] leading-[1.02] font-semibold tracking-[-0.035em] sm:text-[68px] xl:text-[76px]">
+              <span className={`block ${s.rise}`} style={{ "--i": 1 } as CSSProperties}>
+                Put a <span className={s.marker}>toll</span> on
+              </span>
+              <span className={`block ${s.rise}`} style={{ "--i": 2 } as CSSProperties}>
+                <span className={s.rotator}>
+                  <span className={s.rotatorTrack}>
+                    {[...WORDS, WORDS[0]].map((w, i) => (
+                      <span key={i} className="bg-linear-to-r from-ink via-ink-2 to-violet bg-clip-text text-transparent">
+                        {w}
+                      </span>
+                    ))}
+                  </span>
+                </span>
+              </span>
+            </h1>
+
+            <p className={`mt-6 max-w-[34rem] text-[17px] leading-relaxed text-ink-2 ${s.rise}`} style={{ "--i": 3 } as CSSProperties}>
+              Tollgate sits in front of any HTTP API. Claude and other agents hit a <span className="font-mono text-[15px] text-ink">402</span>,
+              pay in USDC and get the response, with no signup, no API keys to hand out and no invoices. Your upstream key never leaves the
+              gateway.
+            </p>
+
+            <div className={`mt-9 flex flex-wrap items-center gap-3 ${s.rise}`} style={{ "--i": 4 } as CSSProperties}>
+              <button
+                onClick={() => setOpen(true)}
+                disabled={busy}
+                className={`btn btn-primary group h-14 rounded-2xl px-7 text-base shadow-[0_12px_30px_-10px_rgb(166_210_15/0.9)] ${s.shine}`}
+              >
+                {busy ? <Spinner /> : null}
+                {cta}
+                <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
+              </button>
+              <a
+                href="https://x402.org"
+                target="_blank"
+                rel="noreferrer"
+                className="btn h-14 rounded-2xl border border-line-strong bg-surface/70 px-6 text-base text-ink backdrop-blur hover:bg-surface"
+              >
+                How x402 works
+              </a>
+            </div>
+
+            <ul className={`mt-10 flex flex-wrap gap-x-6 gap-y-3 text-sm text-ink-2 ${s.rise}`} style={{ "--i": 5 } as CSSProperties}>
+              {[
+                { Icon: Zap, t: "Live in one test call" },
+                { Icon: KeyRound, t: "Key stays server-side" },
+                { Icon: Bot, t: "Claude-ready via MCP" },
+              ].map(({ Icon, t }) => (
+                <li key={t} className="flex items-center gap-2">
+                  <span className="grid size-7 place-items-center rounded-lg border border-line bg-surface shadow-sm">
+                    <Icon className="size-3.5 text-accent" />
+                  </span>
+                  {t}
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className={s.rise} style={{ "--i": 3 } as CSSProperties}>
+            <TollScene />
+          </section>
+        </main>
+
+        <Marquee />
       </div>
-      {error && <p className="mt-3 text-sm text-bad-text">{friendlyError(error)}</p>}
+
+      <SignInDialog open={open} onClose={() => setOpen(false)} session={session} />
     </div>
   );
 }
 
-function SwitchNetwork() {
-  const { switchChain, isPending, error } = useSwitchChain();
+function Backdrop() {
   return (
-    <div>
-      <h2 className="text-xl font-semibold">Wrong network</h2>
-      <p className="mt-1 text-sm text-ink-2">Tollgate settles on {CHAIN.name}. Switch your wallet to continue.</p>
-      <button className="btn btn-primary mt-6 h-12 w-full text-[15px]" disabled={isPending} onClick={() => switchChain({ chainId: CHAIN.id })}>
-        {isPending ? <Spinner /> : null}
-        Switch to {CHAIN.name}
-      </button>
-      {error && <p className="mt-3 text-sm text-bad-text">{friendlyError(error)}</p>}
+    <div aria-hidden className="pointer-events-none absolute inset-0">
+      <div className={`absolute inset-0 ${s.dots}`} />
+      <div className={`absolute -top-40 -left-32 size-[560px] rounded-full bg-lime/45 ${s.blobA}`} />
+      <div className={`absolute top-10 right-[-12%] size-[620px] rounded-full bg-violet/30 ${s.blobB}`} />
+      <div className={`absolute bottom-[-20%] left-[30%] size-[520px] rounded-full bg-[#7dd3fc]/25 ${s.blobC}`} />
+      <div className={`absolute inset-0 ${s.grain}`} />
     </div>
   );
 }
 
-function friendlyError(e: Error): string {
-  const m = e.message || "";
-  if (/reject|denied|cancel/i.test(m)) return "Request cancelled in your wallet.";
-  if (/nonce/i.test(m)) return "Couldn't get a sign-in nonce from the server. Is the Worker running?";
-  return m.split("\n")[0].slice(0, 200);
+function Marquee() {
+  const items = [...ROUTES, ...ROUTES];
+  return (
+    <div className="pb-8">
+      <div className="mb-3 text-center text-[11px] tracking-[0.18em] text-ink-3 uppercase">If it speaks HTTP, it can charge per call</div>
+      <div className={`overflow-hidden ${s.marquee}`}>
+        <div className={`flex w-max gap-3 ${s.marqueeTrack}`}>
+          {items.map(([m, p, price], i) => (
+            <span
+              key={i}
+              aria-hidden={i >= ROUTES.length}
+              className="inline-flex items-center gap-2 rounded-full border border-line bg-surface/80 px-3.5 py-2 font-mono text-xs whitespace-nowrap shadow-sm backdrop-blur"
+            >
+              <span className={m === "GET" ? "text-good-text" : "text-violet"}>{m}</span>
+              <span className="text-ink">{p}</span>
+              <span className="rounded-full bg-lime/40 px-1.5 text-[11px] text-lime-ink">${price}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SignInDialog({ open, onClose, session }: { open: boolean; onClose: () => void; session: ReturnType<typeof useSession> }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    if (open && !d.open) d.showModal();
+    if (!open && d.open) d.close();
+  }, [open]);
+
+  return (
+    <dialog
+      ref={ref}
+      onCancel={(e) => {
+        e.preventDefault();
+        onClose();
+      }}
+      onClick={(e) => e.target === e.currentTarget && onClose()} // backdrop click
+      className="m-auto w-[min(94vw,440px)] overflow-visible rounded-[28px] border border-line bg-surface p-0 text-ink shadow-2xl backdrop:bg-ink/35 backdrop:backdrop-blur-sm"
+    >
+      <div className="relative overflow-hidden rounded-[28px] p-6 sm:p-8">
+        <div className="pointer-events-none absolute -top-24 -right-24 size-64 rounded-full bg-lime/40 blur-3xl" />
+        <button onClick={onClose} className="absolute top-4 right-4 z-10 grid size-9 place-items-center rounded-full text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label="Close">
+          <X className="size-4" />
+        </button>
+        <div className="relative">
+          <SignInPanel session={session} />
+        </div>
+      </div>
+    </dialog>
+  );
 }

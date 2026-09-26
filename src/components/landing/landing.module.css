@@ -1,0 +1,594 @@
+/*
+  Landing hero motion. One 6s loop drives each toll lane:
+
+    0–26%   request drives up to the barrier
+    28–40%  402 on the booth, USDC coin flies over
+    40–50%  booth flips to PAID, barrier lifts
+    50–82%  request rolls through and becomes 200 OK
+    72–82%  barrier drops for the next one
+
+  Lane 2 runs the same loop half a cycle behind (--d: -3s).
+*/
+
+.lane {
+  --d: 0s;
+  --t: 6s;
+}
+.laneB {
+  --d: -3s;
+}
+
+/* ---------- road ---------- */
+
+.road {
+  background-image: repeating-linear-gradient(90deg, var(--line-strong) 0 18px, transparent 18px 34px);
+  background-size: 34px 2px;
+  background-repeat: repeat-x;
+  background-position: 0 50%;
+  animation: road 0.9s linear infinite;
+}
+@keyframes road {
+  to {
+    background-position: -34px 50%;
+  }
+}
+
+/* ---------- the request ("car") ---------- */
+
+.car {
+  left: -40%;
+  animation: drive var(--t) var(--d) infinite;
+}
+@keyframes drive {
+  0% {
+    left: -40%;
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.16, 0.8, 0.3, 1);
+  }
+  6% {
+    opacity: 1;
+  }
+  26% {
+    left: 1%;
+  }
+  50% {
+    left: 1%;
+    animation-timing-function: cubic-bezier(0.55, 0, 0.75, 0.35);
+  }
+  84% {
+    left: 104%;
+    opacity: 1;
+  }
+  90%,
+  100% {
+    left: 110%;
+    opacity: 0;
+  }
+}
+
+/* request chip crossfades into the response chip once through the gate */
+.req {
+  animation: req var(--t) var(--d) infinite;
+}
+.res {
+  opacity: 0;
+  animation: res var(--t) var(--d) infinite;
+}
+@keyframes req {
+  0%,
+  56% {
+    opacity: 1;
+  }
+  60%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes res {
+  0%,
+  56% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  60%,
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* the car rocks a little while it waits at the barrier */
+.wait {
+  animation: wait var(--t) var(--d) infinite;
+}
+@keyframes wait {
+  0%,
+  26%,
+  50%,
+  100% {
+    transform: none;
+  }
+  30% {
+    transform: translateY(-1.5px);
+  }
+  34% {
+    transform: none;
+  }
+  38% {
+    transform: translateY(-1.5px);
+  }
+  42% {
+    transform: none;
+  }
+}
+
+/* ---------- barrier ---------- */
+
+.arm {
+  transform-origin: right center;
+  background: repeating-linear-gradient(-55deg, #10130a 0 10px, #c6f432 10px 20px);
+  animation: arm var(--t) var(--d) infinite;
+}
+@keyframes arm {
+  0%,
+  40% {
+    transform: rotate(0deg);
+    animation-timing-function: cubic-bezier(0.3, 1.5, 0.5, 1);
+  }
+  49%,
+  72% {
+    transform: rotate(78deg);
+    animation-timing-function: cubic-bezier(0.6, 0, 0.3, 1.3);
+  }
+  82%,
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+/* booth display: 402 ↔ PAID */
+.show402 {
+  animation: show402 var(--t) var(--d) infinite;
+}
+.showPaid {
+  opacity: 0;
+  animation: showPaid var(--t) var(--d) infinite;
+}
+@keyframes show402 {
+  0%,
+  39% {
+    opacity: 1;
+  }
+  41%,
+  79% {
+    opacity: 0;
+  }
+  81%,
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes showPaid {
+  0%,
+  39% {
+    opacity: 0;
+  }
+  41%,
+  79% {
+    opacity: 1;
+  }
+  81%,
+  100% {
+    opacity: 0;
+  }
+}
+/* the 402 blinks while the car waits */
+.blink {
+  animation: blink var(--t) var(--d) infinite;
+}
+@keyframes blink {
+  0%,
+  26% {
+    opacity: 1;
+  }
+  29%,
+  35% {
+    opacity: 0.35;
+  }
+  32%,
+  38% {
+    opacity: 1;
+  }
+}
+/* a lime glow ring when payment lands */
+.ping {
+  opacity: 0;
+  animation: ping var(--t) var(--d) infinite;
+}
+@keyframes ping {
+  0%,
+  40% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  42% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  56%,
+  100% {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+
+/* ---------- money ---------- */
+
+.coin {
+  opacity: 0;
+  animation: coin var(--t) var(--d) infinite;
+}
+@keyframes coin {
+  0%,
+  28% {
+    left: 26%;
+    bottom: 22px;
+    opacity: 0;
+    transform: scale(0.4) rotateY(0deg);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1) rotateY(0deg);
+  }
+  35% {
+    left: 48%;
+    bottom: 104px;
+  }
+  40% {
+    left: calc(62% + 34px);
+    bottom: 16px;
+    opacity: 1;
+    transform: scale(0.9) rotateY(360deg);
+  }
+  42%,
+  100% {
+    left: calc(62% + 34px);
+    bottom: 16px;
+    opacity: 0;
+    transform: scale(0.3) rotateY(360deg);
+  }
+}
+
+.plus {
+  opacity: 0;
+  animation: plus var(--t) var(--d) infinite;
+}
+@keyframes plus {
+  0%,
+  42% {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+  46% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  66%,
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -30px);
+  }
+}
+
+/* ---------- terminal replay (synced to lane A) ---------- */
+
+.t1,
+.t2,
+.t3,
+.t4 {
+  opacity: 0;
+  animation: var(--t, 6s) infinite;
+}
+.t1 {
+  animation-name: t1;
+}
+.t2 {
+  animation-name: t2;
+}
+.t3 {
+  animation-name: t3;
+}
+.t4 {
+  animation-name: t4;
+}
+@keyframes t1 {
+  0%,
+  6% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  9%,
+  90% {
+    opacity: 1;
+    transform: none;
+  }
+  96%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes t2 {
+  0%,
+  26% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  29%,
+  90% {
+    opacity: 1;
+    transform: none;
+  }
+  96%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes t3 {
+  0%,
+  34% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  37%,
+  90% {
+    opacity: 1;
+    transform: none;
+  }
+  96%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes t4 {
+  0%,
+  56% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  59%,
+  90% {
+    opacity: 1;
+    transform: none;
+  }
+  96%,
+  100% {
+    opacity: 0;
+  }
+}
+.caret {
+  animation: caret 1s steps(1) infinite;
+}
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ---------- headline ---------- */
+
+.rise {
+  opacity: 0;
+  animation: rise 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  animation-delay: calc(var(--i, 0) * 90ms + 80ms);
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+/* rotating word: 4 words + the first repeated, so the loop is seamless */
+.rotator {
+  display: inline-block;
+  height: 1.14em;
+  overflow: hidden;
+  vertical-align: bottom;
+}
+.rotatorTrack {
+  display: flex;
+  flex-direction: column;
+  animation: rotate 10s cubic-bezier(0.7, 0, 0.2, 1) infinite;
+}
+.rotatorTrack > span {
+  height: 1.14em;
+  line-height: 1.14em;
+  white-space: nowrap;
+}
+@keyframes rotate {
+  0%,
+  18% {
+    transform: translateY(0);
+  }
+  22%,
+  40% {
+    transform: translateY(-20%);
+  }
+  44%,
+  62% {
+    transform: translateY(-40%);
+  }
+  66%,
+  84% {
+    transform: translateY(-60%);
+  }
+  88%,
+  100% {
+    transform: translateY(-80%);
+  }
+}
+
+/* lime highlighter swipe behind a word */
+.marker {
+  position: relative;
+  isolation: isolate;
+}
+.marker::before {
+  content: "";
+  position: absolute;
+  inset: 52% -0.08em 4% -0.08em;
+  z-index: -1;
+  border-radius: 0.12em;
+  background: #c6f432;
+  transform-origin: left;
+  transform: scaleX(0) skewX(-8deg);
+  animation: marker 0.9s 0.7s cubic-bezier(0.7, 0, 0.2, 1) forwards;
+}
+@keyframes marker {
+  to {
+    transform: scaleX(1) skewX(-8deg);
+  }
+}
+
+/* ---------- CTA ---------- */
+
+.shine {
+  position: relative;
+  overflow: hidden;
+}
+.shine::after {
+  content: "";
+  position: absolute;
+  inset: -40% auto -40% -60%;
+  width: 40%;
+  background: linear-gradient(100deg, transparent, rgb(255 255 255 / 0.75), transparent);
+  transform: skewX(-20deg);
+  animation: shine 3.6s 1.4s ease-in-out infinite;
+}
+@keyframes shine {
+  0% {
+    left: -60%;
+  }
+  40%,
+  100% {
+    left: 130%;
+  }
+}
+
+/* ---------- ambient background ---------- */
+
+.dots {
+  background-image: radial-gradient(circle at 1px 1px, rgb(15 18 25 / 0.13) 1px, transparent 0);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 30%, transparent 75%);
+}
+.blobA,
+.blobB,
+.blobC {
+  filter: blur(70px);
+  will-change: transform;
+}
+.blobA {
+  animation: drift 22s ease-in-out infinite alternate;
+}
+.blobB {
+  animation: drift 26s -8s ease-in-out infinite alternate-reverse;
+}
+.blobC {
+  animation: drift 30s -14s ease-in-out infinite alternate;
+}
+@keyframes drift {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(6%, 8%) scale(1.15);
+  }
+  100% {
+    transform: translate(-6%, 3%) scale(0.95);
+  }
+}
+.grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+  opacity: 0.09;
+  mix-blend-mode: multiply;
+}
+
+/* ---------- scene card: tilt + spotlight follow the pointer ---------- */
+
+.tilt {
+  transform: perspective(1400px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 0.25s ease-out;
+  transform-style: preserve-3d;
+}
+.spot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(520px circle at var(--mx, 70%) var(--my, 20%), rgb(198 244 50 / 0.22), transparent 45%);
+  z-index: 0;
+}
+.float {
+  animation: float 6s ease-in-out infinite;
+}
+.floatSlow {
+  animation: float 8s -3s ease-in-out infinite;
+}
+@keyframes float {
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* ---------- marquee ---------- */
+
+.marquee {
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+.marqueeTrack {
+  animation: marquee 38s linear infinite;
+}
+.marquee:hover .marqueeTrack {
+  animation-play-state: paused;
+}
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* ---------- respect reduced motion: a still, readable frame ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .motion *,
+  .motion *::before,
+  .motion *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .motion .car {
+    left: 1%;
+    opacity: 1;
+  }
+  .motion .rise,
+  .motion .t1,
+  .motion .t2,
+  .motion .t3,
+  .motion .t4 {
+    opacity: 1;
+  }
+  .motion .marker::before {
+    transform: scaleX(1) skewX(-8deg);
+  }
+  .motion .tilt {
+    transform: none;
+  }
+}
