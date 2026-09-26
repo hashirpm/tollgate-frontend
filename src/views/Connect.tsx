@@ -1,5 +1,8 @@
+"use client";
+
 import { ArrowRight, Blocks, FlaskConical, PenLine, Radio, Wallet } from "lucide-react";
-import { Navigate, useLocation } from "react-router";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 import { useConnect, useConnectors, useSwitchChain } from "wagmi";
 import { Logo, Spinner } from "@/components/ui";
 import { useSession } from "@/lib/auth";
@@ -8,10 +11,15 @@ import { shortAddr } from "@/lib/format";
 
 export function ConnectPage() {
   const session = useSession();
-  const location = useLocation();
-  const from = (location.state as { from?: string } | null)?.from ?? "/dashboard";
+  const router = useRouter();
+  const param = useSearchParams().get("from");
+  // only same-site paths, never "//evil.com"
+  const from = param && param.startsWith("/") && !param.startsWith("//") ? param : "/dashboard";
+  const signedIn = session.status === "signed-in";
 
-  if (session.status === "signed-in") return <Navigate to={from} replace />;
+  useEffect(() => {
+    if (signedIn) router.replace(from);
+  }, [signedIn, from, router]);
 
   return (
     <div className="mx-auto flex min-h-screen max-w-[1200px] flex-col px-4 py-6 sm:px-8">
@@ -87,7 +95,7 @@ function SignInPanel({ session }: { session: ReturnType<typeof useSession> }) {
         <div>
           <h2 className="text-xl font-semibold">Sign in</h2>
           <p className="mt-1 text-sm text-ink-2">
-            Connected as <span className="font-mono text-ink">{shortAddr(address)}</span>. Sign a message to prove it's your wallet. It's
+            Connected as <span className="font-mono text-ink">{shortAddr(address)}</span>. Sign a message to prove it’s your wallet. It’s
             free and sends no transaction.
           </p>
           <button className="btn btn-primary mt-6 h-12 w-full text-[15px]" disabled={session.signingIn} onClick={() => session.signIn()}>
@@ -149,6 +157,8 @@ function ConnectWallet() {
               className="flex h-14 w-full items-center gap-3 rounded-2xl border border-line-strong bg-surface px-4 text-left text-sm font-medium transition-colors hover:border-ink-3 hover:bg-surface-2"
             >
               {c.icon ? (
+                // wallet icons are data: URIs from EIP-6963; next/image adds nothing here
+                // eslint-disable-next-line @next/next/no-img-element
                 <img src={c.icon} alt="" className="size-7 rounded-lg" />
               ) : (
                 <span className="grid size-7 place-items-center rounded-lg bg-surface-2">

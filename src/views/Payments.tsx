@@ -1,3 +1,5 @@
+"use client";
+
 import { Receipt } from "lucide-react";
 import { useState } from "react";
 import { CallsTable } from "@/components/CallsTable";
@@ -71,7 +73,7 @@ export function PaymentsPage() {
                 Load older
               </button>
             ) : (
-              <span>That's everything</span>
+              <span>That’s everything</span>
             )}
             <span>
               Settled in view <span className="num ml-1 text-sm font-medium text-ink">{usdc(settled, 2)}</span>

@@ -1,3 +1,5 @@
+"use client";
+
 import { Droplets, ExternalLink, Info, ListChecks } from "lucide-react";
 import { CodeBlock } from "@/components/CopyButton";
 import { EmptyState, ErrorState, PageHeader, Skeleton } from "@/components/ui";
@@ -34,7 +36,7 @@ export function ClaudePage() {
         <div className="mb-4 flex items-start gap-3 rounded-2xl border border-warn/40 bg-warn/10 p-4 text-sm">
           <Info className="mt-0.5 size-4 shrink-0 text-warn-text" />
           <span>
-            The MCP server command isn't configured yet. Set <span className="font-mono">VITE_MCP_COMMAND</span> at build time and the snippets below fill in.
+            The MCP server command isn’t configured yet. Set <span className="font-mono">NEXT_PUBLIC_MCP_COMMAND</span> at build time and the snippets below fill in.
           </span>
         </div>
       )}
@@ -62,7 +64,7 @@ export function ClaudePage() {
 
           <section className="card card-pad">
             <Step n={3} title="Fund the buyer wallet" />
-            <p className="mt-2 text-sm text-ink-2">Claude pays in USDC on Base Sepolia. Circle's faucet sends free testnet USDC.</p>
+            <p className="mt-2 text-sm text-ink-2">Claude pays in USDC on Base Sepolia. Circle’s faucet sends free testnet USDC.</p>
             <a href={USDC_FAUCET} target="_blank" rel="noreferrer" className="btn btn-primary mt-4">
               <Droplets className="size-4" /> Get testnet USDC <ExternalLink className="size-3.5" />
             </a>

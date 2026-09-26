@@ -1,3 +1,5 @@
+"use client";
+
 import { ChevronDown, ExternalLink, LogOut } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useUsdcBalance } from "@/hooks/useUsdcBalance";

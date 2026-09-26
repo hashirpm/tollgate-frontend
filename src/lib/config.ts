@@ -14,7 +14,7 @@ export const USDC_FAUCET = "https://faucet.circle.com/";
 
 /**
  * How buyers launch the MCP server. The package isn't published yet, so this
- * is configurable: set VITE_MCP_COMMAND (e.g. "npx -y x402-mcp") at build time.
+ * is configurable: set NEXT_PUBLIC_MCP_COMMAND (e.g. "npx -y x402-mcp") at build time.
  */
-export const MCP_COMMAND: string | undefined = import.meta.env.VITE_MCP_COMMAND || undefined;
+export const MCP_COMMAND: string | undefined = process.env.NEXT_PUBLIC_MCP_COMMAND || undefined;
 export const MCP_SERVER_NAME = "tollgate";

@@ -7,38 +7,41 @@ BaseScan links while their USDC balance grows. Settles in USDC on Base Sepolia.
 Buyers (Claude via MCP) never use this UI; the only buyer-facing page is
 **Use with Claude**.
 
-Vite + React 19 + TypeScript · wagmi v2 + viem · TanStack Query · react-router 7
-· Tailwind v4 · Recharts.
+Next.js 16 (App Router) on Cloudflare Workers via OpenNext · React 19 ·
+wagmi v2 + viem · TanStack Query · Tailwind v4 · Recharts.
 
 ## Run
 
 ```bash
 bun install
-bun dev            # http://localhost:5173, proxies /api /x /catalog → wrangler dev on :8787
-                   # (override the target with WORKER_URL=http://host:port bun dev)
-bun run build      # type-check + build to dist/
+bun dev            # http://localhost:3000 (start the gateway's `wrangler dev` on :8787 first)
 bun run lint
+bun run preview    # build for Workers + run it locally in workerd
+bun run deploy     # build for Workers + deploy
 ```
 
 The dashboard talks to the gateway Worker (Hono + D1) and nothing else, apart
-from reading the USDC balance from Base Sepolia. Start `wrangler dev` first.
+from reading the USDC balance from Base Sepolia.
 
 ## Hosting
 
-The Worker serves `dist/` via Workers Static Assets, so everything is
-same-origin (no CORS, one deploy). In the Worker's `wrangler.jsonc`, point
-`assets.directory` at this repo's `dist/`:
+The dashboard is its own Worker (`tollgate-dashboard`, see `wrangler.jsonc`),
+built by `@opennextjs/cloudflare`. Route handlers proxy `/api/*`, `/x/*` and
+`/catalog` to the gateway Worker (`src/lib/gateway-proxy.ts`), so the browser
+only ever sees one origin: no CORS, and the bearer token stays same-origin.
 
-```jsonc
-"assets": {
-  "directory": "<path-to-this-repo>/dist",
-  "binding": "ASSETS",
-  "not_found_handling": "single-page-application",
-  "run_worker_first": ["/api/*", "/x/*", "/catalog"]
-}
-```
+Proxy target, read at runtime (no rebuild per environment):
 
-Deploy = `bun run build`, then `wrangler deploy`.
+1. a `GATEWAY` **service binding** in `wrangler.jsonc` (Worker to Worker, recommended in production)
+2. the `GATEWAY_URL` var (`wrangler.jsonc` → `vars`, or `.env` for `next dev`)
+3. `http://localhost:8787`
+
+The proxy adds `x-forwarded-host` / `x-forwarded-proto`, so the gateway can check
+the SIWE message's domain against the host the seller actually signed in on.
+
+Nearly everything is a client component: the wallet, SIWE and live polling all
+live in the browser, and the app renders once it's mounted (see
+`src/app/providers.tsx`).
 
 ## Pages
 
@@ -80,5 +83,8 @@ that one file. Assumptions worth checking against the backend:
 
 ## Config
 
-`VITE_MCP_COMMAND` (see `.env.example`): how buyers launch the MCP server. It fills
-in the snippets on **Use with Claude**. Until it's set, that page shows a notice.
+See `.env.example`.
+
+- `GATEWAY_URL`: where `next dev` proxies the API (on Workers, use the `wrangler.jsonc` var or a service binding).
+- `NEXT_PUBLIC_MCP_COMMAND`: how buyers launch the MCP server. It fills in the snippets on
+  **Use with Claude**, and is inlined at build time. Until it's set, that page shows a notice.

@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // The dashboard's own Worker (Next.js via OpenNext). The gateway API is a
+  // separate Worker; this one reaches it through the rewrites in next.config.ts.
+  "name": "tollgate-dashboard",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      // OpenNext uses this for its own internal requests (e.g. revalidation)
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "tollgate-dashboard"
+    }
+  ],
+  // Where /api, /x and /catalog are proxied (read at runtime).
+  "vars": {
+    "GATEWAY_URL": "http://localhost:8787"
+  },
+  // Prefer a service binding in production: Worker → Worker, no public hop.
+  // When set, it wins over GATEWAY_URL.
+  // "services": [..., { "binding": "GATEWAY", "service": "<gateway-worker-name>" }],
+  "observability": { "enabled": true }
+}

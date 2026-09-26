@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Range } from "@/hooks/useStats";

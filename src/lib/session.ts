@@ -55,5 +55,9 @@ function subscribe(fn: () => void) {
 
 /** The token for `addr`, re-rendering whenever any session changes. */
 export function useToken(addr: string | undefined): string | null {
-  return useSyncExternalStore(subscribe, () => (addr ? read(addr) : null));
+  return useSyncExternalStore(
+    subscribe,
+    () => (addr ? read(addr) : null),
+    () => null, // server render: nobody is signed in
+  );
 }

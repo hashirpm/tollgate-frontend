@@ -18,3 +18,9 @@
 # misc
 .DS_Store
 *.log
+
+# next.js / OpenNext
+/.next/
+/.open-next/
+next-env.d.ts
+cloudflare-env.d.ts

@@ -1,6 +1,9 @@
+"use client";
+
 import { Blocks, Bot, LayoutGrid, Menu, Plus, Receipt, X } from "lucide-react";
-import { useState } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { type ReactNode, useState } from "react";
 import { Logo } from "./ui";
 import { WalletPill } from "./WalletPill";
 
@@ -12,24 +15,26 @@ const NAV = [
 ];
 
 function Nav({ onNavigate }: { onNavigate?: () => void }) {
+  const pathname = usePathname();
   return (
     <nav className="flex flex-col gap-1">
-      {NAV.map(({ to, label, Icon, end }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end={end}
-          onClick={onNavigate}
-          className={({ isActive }) =>
-            `flex h-11 items-center gap-3 rounded-2xl px-3.5 text-sm transition-colors ${
-              isActive ? "bg-ink font-medium text-white" : "text-ink-2 hover:bg-surface-2 hover:text-ink"
-            }`
-          }
-        >
-          <Icon className="size-[18px]" />
-          {label}
-        </NavLink>
-      ))}
+      {NAV.map(({ to, label, Icon, end }) => {
+        const active = end ? pathname === to : pathname === to || pathname.startsWith(to + "/");
+        return (
+          <Link
+            key={to}
+            href={to}
+            onClick={onNavigate}
+            aria-current={active ? "page" : undefined}
+            className={`flex h-11 items-center gap-3 rounded-2xl px-3.5 text-sm transition-colors ${
+              active ? "bg-ink font-medium text-white" : "text-ink-2 hover:bg-surface-2 hover:text-ink"
+            }`}
+          >
+            <Icon className="size-[18px]" />
+            {label}
+          </Link>
+        );
+      })}
     </nav>
   );
 }
@@ -40,22 +45,22 @@ function SidebarCard({ onNavigate }: { onNavigate?: () => void }) {
       <div className="absolute -top-10 -right-10 size-28 rounded-full bg-lime/50 blur-2xl" />
       <div className="relative text-sm font-medium">Sell another API</div>
       <p className="relative mt-1 text-xs leading-relaxed text-ink-2">URL, key and price. Your key never reaches the buyer.</p>
-      <Link to="/endpoints/new" onClick={onNavigate} className="btn btn-primary relative mt-3 h-9 w-full text-[13px]">
+      <Link href="/endpoints/new" onClick={onNavigate} className="btn btn-primary relative mt-3 h-9 w-full text-[13px]">
         <Plus className="size-4" /> Add endpoint
       </Link>
     </div>
   );
 }
 
-export function Layout() {
+export function Layout({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
-  const { pathname } = useLocation();
+  const pathname = usePathname();
 
   return (
     <div className="mx-auto flex min-h-screen max-w-[1440px] gap-6 px-4 py-4 sm:px-6 lg:py-6">
       <aside className="sticky top-6 hidden h-[calc(100vh-3rem)] w-[240px] shrink-0 lg:block">
         <div className="card flex h-full flex-col p-4">
-          <Link to="/dashboard" className="mb-8 px-1.5 pt-1">
+          <Link href="/dashboard" className="mb-8 px-1.5 pt-1">
             <Logo />
           </Link>
           <Nav />
@@ -89,7 +94,7 @@ export function Layout() {
           <button className="grid size-11 place-items-center rounded-full border border-line bg-surface lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu">
             <Menu className="size-5" />
           </button>
-          <Link to="/dashboard" className="lg:hidden">
+          <Link href="/dashboard" className="lg:hidden">
             <Logo sub={false} />
           </Link>
           <div className="ml-auto">
@@ -97,7 +102,7 @@ export function Layout() {
           </div>
         </header>
         <main key={pathname} className="animate-fade-up">
-          <Outlet />
+          {children}
         </main>
       </div>
     </div>

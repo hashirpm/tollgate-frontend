@@ -1,5 +1,5 @@
 import { ExternalLink } from "lucide-react";
-import { Link } from "react-router";
+import Link from "next/link";
 import type { Call } from "@/lib/api";
 import { basescanTx, dateTime, shortAddr, usdc } from "@/lib/format";
 import { PayerCell } from "./FeedList";
@@ -23,7 +23,7 @@ export function CallsTable({ rows }: { rows: Call[] }) {
         {rows.map((r) => (
           <div key={r.id} className={`trow ${COLS}`}>
             <div className="num text-xs text-ink-2">{dateTime(r.t)}</div>
-            <Link to={`/endpoints/${r.endpointId}`} className="truncate font-medium hover:underline">
+            <Link href={`/endpoints/${r.endpointId}`} className="truncate font-medium hover:underline">
               {r.endpointName}
             </Link>
             <PayerCell payer={r.payer} />

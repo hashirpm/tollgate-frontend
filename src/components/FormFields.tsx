@@ -1,3 +1,5 @@
+"use client";
+
 import { KeyRound, Plus, X } from "lucide-react";
 import { useId } from "react";
 import { jsonError } from "@/lib/json";

@@ -1,20 +1,28 @@
-import type { ReactNode } from "react";
-import { Navigate, useLocation } from "react-router";
+"use client";
+
+import { usePathname, useRouter } from "next/navigation";
+import { type ReactNode, useEffect } from "react";
 import { useSession } from "@/lib/auth";
 import { Spinner } from "./ui";
 
 /** Anything behind the dashboard needs a signed-in wallet on Base Sepolia. */
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { status } = useSession();
-  const location = useLocation();
+  const pathname = usePathname();
+  const router = useRouter();
+  const waiting = status === "reconnecting" || status === "checking";
+  const allowed = status === "signed-in";
 
-  if (status === "reconnecting" || status === "checking") {
+  useEffect(() => {
+    if (!waiting && !allowed) router.replace(`/?from=${encodeURIComponent(pathname)}`);
+  }, [waiting, allowed, pathname, router]);
+
+  if (!allowed) {
     return (
       <div className="grid min-h-screen place-items-center text-ink-2">
         <Spinner className="size-6" />
       </div>
     );
   }
-  if (status !== "signed-in") return <Navigate to="/" replace state={{ from: location.pathname }} />;
   return <>{children}</>;
 }

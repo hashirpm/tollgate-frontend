@@ -1,6 +1,9 @@
+"use client";
+
 import { AlertTriangle, ArrowLeft, CircleDollarSign, Pause, Pencil, Play, Users, Zap } from "lucide-react";
 import { useState } from "react";
-import { Link, useParams } from "react-router";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { CodeBlock, CopyUrl } from "@/components/CopyButton";
 import { FeedList } from "@/components/FeedList";
 import { IncomeChart } from "@/components/IncomeChart";
@@ -15,7 +18,7 @@ import { MCP_SERVER_NAME } from "@/lib/config";
 import { atomicToUsd, usdc } from "@/lib/format";
 
 export function EndpointDetailPage() {
-  const { id = "" } = useParams();
+  const { id } = useParams<{ id: string }>();
   const ep = useEndpoint(id);
   const [range, setRange] = useState<Range>("24h");
   const stats = useStats(range, id);
@@ -37,7 +40,7 @@ export function EndpointDetailPage() {
 
   return (
     <>
-      <Link to="/endpoints" className="mb-4 inline-flex items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
+      <Link href="/endpoints" className="mb-4 inline-flex items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
         <ArrowLeft className="size-4" /> Endpoints
       </Link>
       <PageHeader
@@ -60,7 +63,7 @@ export function EndpointDetailPage() {
             {setStatus.isPending ? <Spinner /> : <Play className="size-4" />} Activate
           </button>
         )}
-        <Link to={`/endpoints/${e.id}/edit`} className={`btn ${e.status === "pending" ? "btn-primary" : "btn-ghost"}`}>
+        <Link href={`/endpoints/${e.id}/edit`} className={`btn ${e.status === "pending" ? "btn-primary" : "btn-ghost"}`}>
           <Pencil className="size-4" /> {e.status === "pending" ? "Edit and test" : "Edit"}
         </Link>
       </PageHeader>
@@ -94,7 +97,7 @@ export function EndpointDetailPage() {
             <div className="label">Call it from Claude</div>
             <CodeBlock title="paid_fetch" code={mcpSnippet(e, url)} />
             <p className="hint">
-              Arguments for the <span className="font-mono">paid_fetch</span> tool of the {MCP_SERVER_NAME} MCP server. <Link to="/claude" className="underline">Setup →</Link>
+              Arguments for the <span className="font-mono">paid_fetch</span> tool of the {MCP_SERVER_NAME} MCP server. <Link href="/claude" className="underline">Setup →</Link>
             </p>
           </div>
         </div>

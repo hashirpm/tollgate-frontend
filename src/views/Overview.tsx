@@ -1,6 +1,8 @@
+"use client";
+
 import { AlertTriangle, ArrowRight, Blocks, CircleDollarSign, Plus, Users, Wallet, Zap } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router";
+import Link from "next/link";
 import { FeedList } from "@/components/FeedList";
 import { IncomeChart } from "@/components/IncomeChart";
 import { KpiTile } from "@/components/KpiTile";
@@ -28,7 +30,7 @@ export function OverviewPage() {
   return (
     <>
       <PageHeader title="Overview" sub="Paid calls across your endpoints, live.">
-        <Link to="/endpoints/new" className="btn btn-primary">
+        <Link href="/endpoints/new" className="btn btn-primary">
           <Plus className="size-4" /> Add endpoint
         </Link>
       </PageHeader>
@@ -77,7 +79,7 @@ export function OverviewPage() {
         <div className="card card-pad flex flex-col">
           <div className="mb-4 flex items-center justify-between">
             <div className="card-title">Top endpoints</div>
-            <Link to="/endpoints" className="inline-flex items-center gap-1 text-sm text-ink-2 hover:text-ink">
+            <Link href="/endpoints" className="inline-flex items-center gap-1 text-sm text-ink-2 hover:text-ink">
               All <ArrowRight className="size-3.5" />
             </Link>
           </div>
@@ -90,12 +92,12 @@ export function OverviewPage() {
           ) : endpoints.error ? (
             <ErrorState error={endpoints.error} onRetry={() => endpoints.refetch()} />
           ) : top.length === 0 ? (
-            <EmptyState icon={<Blocks className="size-5" />} title="No endpoints yet" action={<Link to="/endpoints/new" className="btn btn-primary btn-sm">Add your first endpoint</Link>} />
+            <EmptyState icon={<Blocks className="size-5" />} title="No endpoints yet" action={<Link href="/endpoints/new" className="btn btn-primary btn-sm">Add your first endpoint</Link>} />
           ) : (
             <ul className="-mx-2 space-y-1">
               {top.map((e) => (
                 <li key={e.id}>
-                  <Link to={`/endpoints/${e.id}`} className="flex items-center gap-3 rounded-2xl px-2 py-2.5 hover:bg-surface-2">
+                  <Link href={`/endpoints/${e.id}`} className="flex items-center gap-3 rounded-2xl px-2 py-2.5 hover:bg-surface-2">
                     <Avatar seed={e.id} size={34} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium">{e.name}</div>

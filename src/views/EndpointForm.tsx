@@ -1,6 +1,9 @@
+"use client";
+
 import { ArrowLeft, CircleCheck, CircleX, FlaskConical, Info, RotateCcw } from "lucide-react";
 import { type FormEvent, type ReactNode, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 import { CopyUrl } from "@/components/CopyButton";
 import { JsonField, type KV, KeyValueRows, SecretField } from "@/components/FormFields";
 import { jsonError } from "@/lib/json";
@@ -93,7 +96,7 @@ function toInput(f: FormState): EndpointInput {
 }
 
 export function EndpointFormPage() {
-  const { id } = useParams();
+  const { id } = useParams<{ id?: string }>();
   const existing = useEndpoint(id);
 
   if (id && existing.isPending) {
@@ -110,7 +113,7 @@ export function EndpointFormPage() {
 }
 
 function EndpointForm({ existing }: { existing?: Endpoint }) {
-  const navigate = useNavigate();
+  const router = useRouter();
   const save = useSaveEndpoint();
   const test = useTestEndpoint();
   const [f, setF] = useState<FormState>(() => initialState(existing));
@@ -161,7 +164,7 @@ function EndpointForm({ existing }: { existing?: Endpoint }) {
           test.reset();
           setStep("form");
         }}
-        onDone={() => navigate(`/endpoints/${savedId}`)}
+        onDone={() => router.push(`/endpoints/${savedId}`)}
       />
     );
   }
@@ -172,7 +175,7 @@ function EndpointForm({ existing }: { existing?: Endpoint }) {
         title={existing ? `Edit ${existing.name}` : "Add endpoint"}
         sub={existing ? "Changes apply to new calls right away." : "Point Tollgate at an API, set a price, then test it to go live."}
       >
-        <Link to={existing ? `/endpoints/${existing.id}` : "/endpoints"} className="btn btn-ghost">
+        <Link href={existing ? `/endpoints/${existing.id}` : "/endpoints"} className="btn btn-ghost">
           <ArrowLeft className="size-4" /> Cancel
         </Link>
       </PageHeader>
@@ -192,7 +195,7 @@ function EndpointForm({ existing }: { existing?: Endpoint }) {
                 </select>
               </Field>
             </div>
-            <Field label="Description" htmlFor="desc" hint={<ClaudeHint>Claude reads this to decide when to call your API. Say what it returns and when it's useful.</ClaudeHint>}>
+            <Field label="Description" htmlFor="desc" hint={<ClaudeHint>Claude reads this to decide when to call your API. Say what it returns and when it’s useful.</ClaudeHint>}>
               <textarea
                 id="desc"
                 className="input h-auto min-h-20 resize-y py-2.5"
@@ -413,7 +416,7 @@ function TestStep({
                   <button className="btn btn-primary" onClick={onDone}>
                     View endpoint
                   </button>
-                  <Link to="/claude" className="btn btn-ghost">
+                  <Link href="/claude" className="btn btn-ghost">
                     Use with Claude
                   </Link>
                 </div>

@@ -1,5 +1,7 @@
+"use client";
+
 import { ExternalLink, Radio } from "lucide-react";
-import { Link } from "react-router";
+import Link from "next/link";
 import type { FeedRow } from "@/hooks/useFeed";
 import { useNow } from "@/hooks/useNow";
 import { ago, basescanAddress, basescanTx, clock, shortAddr, usdc } from "@/lib/format";
@@ -34,7 +36,7 @@ export function FeedList({
           </div>
           <div className="card-cap mt-0.5">last 20 calls · updates every 2s</div>
         </div>
-        <Link to="/payments" className="text-sm text-ink-2 hover:text-ink">
+        <Link href="/payments" className="text-sm text-ink-2 hover:text-ink">
           All payments →
         </Link>
       </div>
@@ -71,7 +73,7 @@ export function FeedList({
                   <div className="text-[11px] text-ink-3">{ago(r.t, now)}</div>
                 </div>
                 {showEndpoint ? (
-                  <Link to={`/endpoints/${r.endpointId}`} className="truncate font-medium hover:underline">
+                  <Link href={`/endpoints/${r.endpointId}`} className="truncate font-medium hover:underline">
                     {r.endpointName}
                   </Link>
                 ) : (

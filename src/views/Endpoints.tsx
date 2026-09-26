@@ -1,6 +1,8 @@
+"use client";
+
 import { Blocks, Pause, Pencil, Play, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router";
+import Link from "next/link";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { CopyUrl } from "@/components/CopyButton";
 import { EndpointStatusBadge } from "@/components/StatusBadge";
@@ -22,7 +24,7 @@ export function EndpointsPage() {
   return (
     <>
       <PageHeader title="Endpoints" sub="The APIs you sell. Only active endpoints are listed in the catalog Claude sees.">
-        <Link to="/endpoints/new" className="btn btn-primary">
+        <Link href="/endpoints/new" className="btn btn-primary">
           <Plus className="size-4" /> Add endpoint
         </Link>
       </PageHeader>
@@ -49,7 +51,7 @@ export function EndpointsPage() {
             icon={<Blocks className="size-5" />}
             title="Add your first endpoint"
             action={
-              <Link to="/endpoints/new" className="btn btn-primary">
+              <Link href="/endpoints/new" className="btn btn-primary">
                 <Plus className="size-4" /> Add endpoint
               </Link>
             }
@@ -73,7 +75,7 @@ export function EndpointsPage() {
                 const busy = setStatus.isPending && setStatus.variables?.id === e.id;
                 return (
                   <div key={e.id} className={`trow ${COLS}`}>
-                    <Link to={`/endpoints/${e.id}`} className="flex min-w-0 items-center gap-3">
+                    <Link href={`/endpoints/${e.id}`} className="flex min-w-0 items-center gap-3">
                       <Avatar seed={e.id} size={34} />
                       <div className="min-w-0">
                         <div className="truncate font-medium hover:underline">{e.name}</div>
@@ -97,11 +99,11 @@ export function EndpointsPage() {
                         </IconBtn>
                       ) : (
                         // pending endpoints go live by passing a test, not by a toggle
-                        <Link to={`/endpoints/${e.id}/edit`} className="btn btn-ghost btn-sm" title="Run the test to activate">
+                        <Link href={`/endpoints/${e.id}/edit`} className="btn btn-ghost btn-sm" title="Run the test to activate">
                           Test
                         </Link>
                       )}
-                      <Link to={`/endpoints/${e.id}/edit`} className="btn btn-ghost size-8 px-0" aria-label="Edit" title="Edit">
+                      <Link href={`/endpoints/${e.id}/edit`} className="btn btn-ghost size-8 px-0" aria-label="Edit" title="Edit">
                         <Pencil className="size-4" />
                       </Link>
                       <IconBtn label="Delete" onClick={() => setToDelete(e)}>
