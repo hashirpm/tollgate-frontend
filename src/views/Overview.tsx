@@ -6,6 +6,7 @@ import Link from "next/link";
 import { FeedList } from "@/components/FeedList";
 import { IncomeChart } from "@/components/IncomeChart";
 import { KpiTile } from "@/components/KpiTile";
+import { EnsStorefront } from "@/components/Ens";
 import { ProtectionCard } from "@/components/Screening";
 import { EndpointStatusBadge } from "@/components/StatusBadge";
 import { Avatar, EmptyState, ErrorState, PageHeader, Skeleton } from "@/components/ui";
@@ -41,6 +42,10 @@ export function OverviewPage() {
           <ErrorState error={stats.error} onRetry={() => stats.refetch()} />
         </div>
       )}
+
+      <div className="mb-4">
+        <EnsStorefront listings={endpoints.data ?? []} />
+      </div>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <div className="sm:col-span-2 xl:col-span-1">

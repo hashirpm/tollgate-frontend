@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, ChevronDown, CircleCheck, CircleX, Clock, ExternalLink, FlaskConical, Info, Plus, RotateCcw, Save, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, AtSign, ChevronDown, CircleCheck, CircleX, Clock, ExternalLink, FlaskConical, Info, Plus, RotateCcw, Save, ShieldCheck } from "lucide-react";
 import { type FormEvent, type ReactNode, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -24,6 +24,9 @@ import {
   type SavedEndpoint,
   type TestResult,
 } from "@/lib/api";
+import { EnsName } from "@/components/Ens";
+import { useMe } from "@/hooks/useEns";
+import { ensLabel, labelError } from "@/lib/ens";
 import { atomicToInput, usdToAtomic } from "@/lib/format";
 import { type CreditTemplate, TEMPLATE_CATEGORIES, TEMPLATES, templateFor, withKeyPrefix } from "@/lib/templates";
 
@@ -47,6 +50,8 @@ interface FormState {
   bodyOverrides: string;
   maxBodyBytes: string;
   screenPayers: boolean;
+  /** Label for the listing's ENS name; "" derives it from the name. */
+  ensLabel: string;
 }
 
 function initialState(ep?: Endpoint): FormState {
@@ -65,6 +70,7 @@ function initialState(ep?: Endpoint): FormState {
     bodyOverrides: ep?.bodyOverrides ?? "",
     maxBodyBytes: String(ep?.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES),
     screenPayers: ep?.screenPayers ?? true,
+    ensLabel: ep?.ensLabel ?? "",
   };
 }
 
@@ -85,6 +91,7 @@ function applyTemplate(t: CreditTemplate, f: FormState): FormState {
     exampleBody: hasBody && t.exampleBody !== undefined ? JSON.stringify(t.exampleBody, null, 2) : "",
     bodyOverrides: t.bodyOverrides ? JSON.stringify(t.bodyOverrides, null, 2) : "",
     maxBodyBytes: String(t.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES),
+    ensLabel: t.ensLabel,
   };
 }
 
@@ -124,6 +131,10 @@ function validate(f: FormState, hasStoredSecret: boolean): Errors {
     else if (overrides && jsonError(f.exampleBody, { object: true })) e.exampleBody = "Must be a JSON object, because body overrides are merged into it.";
   }
   if (overrides && jsonError(f.bodyOverrides, { object: true })) e.bodyOverrides = "Must be a JSON object, like {\"max_tokens\": 500}.";
+  if (f.ensLabel.trim()) {
+    const err = labelError(f.ensLabel, "The ENS name");
+    if (err) e.ensLabel = err;
+  }
   const maxb = f.maxBodyBytes.trim();
   if (!/^\d+$/.test(maxb) || Number(maxb) > MAX_BODY_LIMIT) e.maxBodyBytes = `Whole number of bytes, 0 to ${MAX_BODY_LIMIT.toLocaleString("en-US")}.`;
   return e;
@@ -162,6 +173,7 @@ function toInput(f: FormState): EndpointInput {
     body_overrides: hasBody && f.bodyOverrides.trim() ? (parseJson(f.bodyOverrides) as Record<string, unknown>) : null,
     max_body_bytes: Number(f.maxBodyBytes.trim()),
     screen_payers: f.screenPayers,
+    ens_label: f.ensLabel.trim().toLowerCase() || null,
   };
 }
 
@@ -191,6 +203,7 @@ const ISSUE_FIELDS: [string, keyof FormState][] = [
   ["body_overrides", "bodyOverrides"],
   ["max_body_bytes", "maxBodyBytes"],
   ["screen_payers", "screenPayers"],
+  ["ens_label", "ensLabel"],
   ["description", "description"],
   ["method", "method"],
   ["name", "name"],
@@ -246,6 +259,7 @@ function EndpointForm({ existing }: { existing?: Endpoint }) {
   // undefined: still choosing a provider (new listings only); null: custom API
   const [template, setTemplate] = useState<CreditTemplate | null | undefined>(() => (existing ? (templateFor(existing.url) ?? null) : undefined));
   const [advanced, setAdvanced] = useState(false);
+  const me = useMe();
 
   const hasStoredSecret = !!saved?.hasAuthValue;
   const errors = validate(f, hasStoredSecret);
@@ -348,6 +362,51 @@ function EndpointForm({ existing }: { existing?: Endpoint }) {
       />
     );
   }
+
+  // Listings are named on ENS the first time they go live: <label>.<seller name or parent>.
+  const ensParent = me.data?.name?.ensName ?? me.data?.ens?.parent ?? null;
+  const ensField = saved?.ensName ? (
+    <Field label="ENS name" hint="Named when it first went live. Renaming the listing doesn’t change it.">
+      <div className="flex h-10 items-center rounded-xl border border-[#3889ff]/25 bg-[#3889ff]/[0.05] px-3.5">
+        <EnsName name={saved.ensName} />
+      </div>
+    </Field>
+  ) : ensParent ? (
+    <Field
+      label="ENS name"
+      htmlFor="ensLabel"
+      error={show("ensLabel")}
+      hint={
+        me.data?.name ? (
+          "Registered on ENS when it first goes live. Agents can call it by this name and check the payee on-chain."
+        ) : (
+          <>
+            Registered on ENS when it first goes live.{" "}
+            <Link href="/dashboard#ens" className="font-medium text-[#3889ff] hover:underline">
+              Claim your own name
+            </Link>{" "}
+            to get <span className="font-mono">label.you.{ensParent}</span>.
+          </>
+        )
+      }
+    >
+      <label
+        className={`flex h-10 items-center rounded-xl border bg-surface-2 pr-3.5 pl-3.5 transition-colors focus-within:border-[#3889ff] ${show("ensLabel") ? "border-bad" : "border-line-strong"}`}
+      >
+        <input
+          id="ensLabel"
+          aria-invalid={!!show("ensLabel")}
+          className="h-full min-w-0 flex-1 bg-transparent font-mono text-[13px] font-semibold text-ink outline-none placeholder:font-normal placeholder:text-ink-3"
+          value={f.ensLabel}
+          onChange={(e) => set("ensLabel", e.target.value.replace(/\s/g, "").toLowerCase())}
+          placeholder={ensLabel(f.name) || "elevenlabs"}
+          spellCheck={false}
+          maxLength={32}
+        />
+        <span className="shrink-0 truncate font-mono text-[12px] text-ink-3">.{ensParent}</span>
+      </label>
+    </Field>
+  ) : null;
 
   const nameField = (
     <Field label="Name" htmlFor="name" error={show("name")}>
@@ -542,6 +601,7 @@ function EndpointForm({ existing }: { existing?: Endpoint }) {
 
               <Section title="Listing" sub="What buyers and Claude see. Pre-filled; edit if you like.">
                 {nameField}
+                {ensField}
                 {descriptionField}
               </Section>
 
@@ -577,6 +637,7 @@ function EndpointForm({ existing }: { existing?: Endpoint }) {
                   {nameField}
                   {methodField}
                 </div>
+                {ensField}
                 {descriptionField}
                 {urlField}
               </Section>
@@ -777,6 +838,8 @@ function TestStep({
   onDone: () => void;
 }) {
   const passed = !!result?.ok;
+  const me = useMe();
+  const ensParent = me.data?.name?.ensName ?? me.data?.ens?.parent;
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
@@ -841,6 +904,15 @@ function TestStep({
                   <CopyUrl url={paidUrl(id)} />
                   <div className="hint">Buyers who call this get a 402 with your price, pay in USDC, then get the response.</div>
                 </div>
+                {result.activated && ensParent && (
+                  <p className="flex items-start gap-2 rounded-2xl border border-[#3889ff]/25 bg-[#3889ff]/[0.05] p-3 text-xs text-ink-2">
+                    <AtSign className="mt-px size-3.5 shrink-0 text-[#3889ff]" />
+                    <span>
+                      Registering its ENS name under <span className="font-mono text-ink">{ensParent}</span> now. It shows on the listing page within a
+                      block or two.
+                    </span>
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-2">
                   <button className="btn btn-primary" onClick={onDone}>
                     View listing

@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowRight, ArrowUpRight, Check, Plus, ShieldCheck, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, AtSign, Check, Plus, ShieldCheck, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type CSSProperties, type PointerEvent, useEffect, useRef, useState } from "react";
 import s from "@/components/landing/landing.module.css";
 import { TollScene } from "@/components/landing/TollScene";
+import { EnsName } from "@/components/Ens";
 import { SignInPanel } from "@/components/SignInPanel";
 import { Logo, Spinner } from "@/components/ui";
 import { useSession } from "@/lib/auth";
@@ -15,12 +16,12 @@ const WORDS = ["API credits.", "voice credits.", "image credits.", "video credit
 
 // Illustrative purchases for the ticker. Nothing here is real data.
 const SALES = [
-  { agent: "claude-agent", what: "Kling video · 5s", price: "0.75" },
-  { agent: "podcast-bot", what: "ElevenLabs voice", price: "0.03" },
-  { agent: "research-agent", what: "Exa search", price: "0.01" },
-  { agent: "design-agent", what: "Higgsfield Soul image", price: "0.10" },
-  { agent: "notes-agent", what: "Deepgram transcript", price: "0.02" },
-  { agent: "claude-agent", what: "FLUX image", price: "0.01" },
+  { agent: "claude-agent", what: "kling.maya.tollgate-x402.eth", price: "0.75" },
+  { agent: "podcast-bot", what: "elevenlabs.kenji.tollgate-x402.eth", price: "0.03" },
+  { agent: "research-agent", what: "exa-search.sora.tollgate-x402.eth", price: "0.01" },
+  { agent: "design-agent", what: "higgsfield.maya.tollgate-x402.eth", price: "0.10" },
+  { agent: "notes-agent", what: "deepgram.yuki.tollgate-x402.eth", price: "0.02" },
+  { agent: "claude-agent", what: "flux.kenji.tollgate-x402.eth", price: "0.01" },
 ];
 
 export function ConnectPage() {
@@ -90,6 +91,12 @@ export function ConnectPage() {
                 >
                   <ShieldCheck className="size-3.5" /> Secured by Intercepta
                 </a>
+                <span
+                  title="Every seller and listing gets an ENS name. Agents check the payee on ENS before they pay."
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#3889ff]/30 bg-[#3889ff]/10 px-3 py-1 text-xs font-medium text-[#2563eb] backdrop-blur"
+                >
+                  <AtSign className="size-3.5" /> Named on ENS
+                </span>
               </div>
             </div>
 
@@ -161,7 +168,7 @@ function SalesTicker() {
       <span key={i} className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm ${s.tick}`}>
         <span className="font-mono text-xs text-ink-3">{sale.agent}</span>
         <span className="text-ink-3">bought</span>
-        <span className="font-medium">{sale.what}</span>
+        <EnsName name={sale.what} size="sm" link={false} />
         <span className="rounded-full bg-lime/50 px-2 py-0.5 font-mono text-[11px] font-semibold text-lime-ink">${sale.price}</span>
         <span className="inline-flex items-center gap-1 text-xs text-good-text">
           <ShieldCheck className="size-3.5" /> screened by Intercepta

@@ -7,9 +7,11 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useAccount, useConnect, useConnectors, useDisconnect, useSwitchChain, useWalletClient } from "wagmi";
 import { JsonField } from "@/components/FormFields";
+import { EnsCard, EnsName } from "@/components/Ens";
 import { ScreeningPanel } from "@/components/Screening";
 import { Avatar, EmptyState, ErrorState, Logo, Skeleton, Spinner } from "@/components/ui";
 import { useCatalog } from "@/hooks/useEndpoints";
+import { useEnsCheck } from "@/hooks/useEns";
 import { usePreScreen } from "@/hooks/useScreening";
 import { useUsdcBalance } from "@/hooks/useUsdcBalance";
 import type { CatalogItem, Screening } from "@/lib/api";
@@ -104,6 +106,9 @@ function PayView({ item }: { item: CatalogItem }) {
   });
   const screenings = live.length ? live : pre.data ? [pre.data] : [];
   const flagged = pre.data?.verdict === "block";
+  // the listing's ENS record must point where the payment goes, like the MCP checks
+  const ens = useEnsCheck(item.ensName, item.payTo);
+  const ensMismatch = ens?.state === "mismatch";
 
   // object URLs hold the whole response in memory until revoked
   const blobUrl = pay.data?.blobUrl;
@@ -123,6 +128,12 @@ function PayView({ item }: { item: CatalogItem }) {
               <h1 className="text-2xl font-semibold tracking-tight">{item.name}</h1>
               <span className="chip font-mono text-[11px]">{item.method}</span>
             </div>
+            {item.ensName && <EnsName name={item.ensName} size="md" className="mt-1" />}
+            {item.sellerEnsName && (
+              <div className="mt-1 flex items-center gap-1.5 text-xs text-ink-3">
+                Sold by <EnsName name={item.sellerEnsName} size="sm" />
+              </div>
+            )}
             <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-2">{item.description}</p>
           </div>
           <div className="flex w-full items-baseline gap-2 sm:block sm:w-auto sm:text-right">
@@ -176,7 +187,7 @@ function PayView({ item }: { item: CatalogItem }) {
                 )}
                 <button
                   className="btn btn-primary h-12 w-full text-[15px]"
-                  disabled={pay.isPending || !wallet || short || !!bodyError || flagged}
+                  disabled={pay.isPending || !wallet || short || !!bodyError || flagged || ensMismatch}
                   onClick={() => {
                     pay.reset();
                     setLive([]);
@@ -188,8 +199,10 @@ function PayView({ item }: { item: CatalogItem }) {
                 </button>
                 {bodyError && <p className="text-xs text-bad-text">Fix the JSON body first.</p>}
                 {flagged && <p className="text-xs text-bad-text">Intercepta flagged this seller, so paying is disabled.</p>}
+                {ensMismatch && <p className="text-xs text-bad-text">The ENS record doesn’t match this seller, so paying is disabled.</p>}
               </>
             )}
+            {item.ensName && <EnsCard name={item.ensName} payTo={item.payTo} whose="buyer" title="Payee verified on ENS" />}
             <div className="border-t border-line pt-4">
               <ScreeningPanel screenings={screenings} loading={pre.isPending || (pay.isPending && stage === "screen")} error={live.length ? null : pre.error} />
             </div>

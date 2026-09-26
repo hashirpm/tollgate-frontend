@@ -1,6 +1,7 @@
 "use client";
 
 import { Droplets, ExternalLink, Info, ListChecks } from "lucide-react";
+import { EnsName } from "@/components/Ens";
 import { CodeBlock } from "@/components/CopyButton";
 import { EmptyState, ErrorState, PageHeader, Skeleton } from "@/components/ui";
 import { useCatalog } from "@/hooks/useEndpoints";
@@ -101,6 +102,7 @@ export function ClaudePage() {
                     <span className="truncate font-medium">{c.name}</span>
                     {c.priceUsd != null && <span className="num shrink-0 text-sm">{usd(c.priceUsd)}</span>}
                   </div>
+                  {c.ensName && <EnsName name={c.ensName} size="sm" className="mt-0.5" />}
                   {c.description && <p className="mt-1 line-clamp-2 text-sm text-ink-2">{c.description}</p>}
                   <div className="mt-1.5 truncate font-mono text-[11px] text-ink-3">
                     {c.method} {c.url}

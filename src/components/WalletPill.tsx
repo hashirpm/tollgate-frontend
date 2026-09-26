@@ -2,6 +2,7 @@
 
 import { ChevronDown, Copy, ExternalLink, LogOut } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useMe } from "@/hooks/useEns";
 import { useUsdcBalance } from "@/hooks/useUsdcBalance";
 import { useSession } from "@/lib/auth";
 import { CHAIN } from "@/lib/config";
@@ -12,6 +13,7 @@ import { Avatar } from "./ui";
 export function WalletPill() {
   const { address, signOut } = useSession();
   const balance = useUsdcBalance(address);
+  const ensName = useMe().data?.name?.ensName;
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -34,7 +36,7 @@ export function WalletPill() {
       >
         <Avatar seed={address} size={34} />
         <div className="hidden text-left leading-tight sm:block">
-          <div className="text-[13px] font-medium">My account</div>
+          <div className="max-w-44 truncate text-[13px] font-medium">{ensName ?? "My account"}</div>
           <div className="num font-mono text-[11px] text-ink-3">{shortAddr(address)}</div>
         </div>
         <ChevronDown className="size-4 text-ink-3" />

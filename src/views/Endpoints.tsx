@@ -5,6 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { CopyUrl } from "@/components/CopyButton";
+import { EnsName } from "@/components/Ens";
 import { EndpointStatusBadge } from "@/components/StatusBadge";
 import { Avatar, EmptyState, ErrorState, PageHeader, Skeleton, Spinner } from "@/components/ui";
 import { useDeleteEndpoint, useEndpoints, useSetEndpointStatus } from "@/hooks/useEndpoints";
@@ -79,7 +80,11 @@ export function EndpointsPage() {
                       <Avatar seed={e.id} size={34} />
                       <div className="min-w-0">
                         <div className="truncate font-medium hover:underline">{e.name}</div>
-                        <div className="truncate text-xs text-ink-3">{e.description || e.url}</div>
+                        {e.ensName ? (
+                          <EnsName name={e.ensName} size="sm" link={false} className="mt-0.5" />
+                        ) : (
+                          <div className="truncate text-xs text-ink-3">{e.description || e.url}</div>
+                        )}
                       </div>
                     </Link>
                     <span className="w-fit rounded-md bg-surface-2 px-1.5 py-0.5 font-mono text-[11px] text-ink-2">{e.method}</span>

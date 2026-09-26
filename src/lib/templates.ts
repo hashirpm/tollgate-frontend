@@ -41,6 +41,8 @@ export interface CreditTemplate {
 
   /** Suggested price per call, USD. */
   price: string;
+  /** Default label for the listing's ENS name: elevenlabs.<seller>.<parent>. */
+  ensLabel: string;
   name: string;
   description: string;
   /** Returns a job id, not the result; shown as a caveat. */
@@ -66,6 +68,7 @@ export const TEMPLATES: CreditTemplate[] = [
     bodyOverrides: { num_images: 1 },
     maxBodyBytes: 8192,
     price: "0.10",
+    ensLabel: "higgsfield",
     name: "Higgsfield Soul images",
     description:
       'Photoreal image generation with Higgsfield Soul, one image per call. Send {"prompt": "..."}. Higgsfield works asynchronously: the call returns a request_id, and the finished image is POSTed to the HTTPS URL you pass as the hf_webhook query parameter.',
@@ -89,6 +92,7 @@ export const TEMPLATES: CreditTemplate[] = [
     bodyOverrides: { duration: 5 },
     maxBodyBytes: 8192,
     price: "0.75",
+    ensLabel: "kling",
     name: "Kling 2.5 Turbo video (Higgsfield)",
     description:
       'Text-to-video with Kling 2.5 Turbo Pro via Higgsfield, 5-second clips. Send {"prompt": "..."}. Higgsfield works asynchronously: the call returns a request_id, and the finished video is POSTed to the HTTPS URL you pass as the hf_webhook query parameter.',
@@ -111,6 +115,7 @@ export const TEMPLATES: CreditTemplate[] = [
     bodyOverrides: { num_images: 1 },
     maxBodyBytes: 8192,
     price: "0.01",
+    ensLabel: "flux",
     name: "FLUX schnell images (fal)",
     description: 'Image generation with FLUX.1 [schnell] on fal, one image per call. Send {"prompt": "..."} and get back JSON with the image URL.',
   },
@@ -132,6 +137,7 @@ export const TEMPLATES: CreditTemplate[] = [
     exampleBody: { input: { prompt: "A lighthouse on a cliff at dawn, watercolor" } },
     maxBodyBytes: 8192,
     price: "0.06",
+    ensLabel: "flux-pro",
     name: "FLUX 1.1 pro images (Replicate)",
     description:
       'Image generation with FLUX 1.1 [pro] on Replicate. Send {"input": {"prompt": "..."}} and get back the prediction, with the image URL in "output".',
@@ -155,6 +161,7 @@ export const TEMPLATES: CreditTemplate[] = [
     // ElevenLabs bills per character, so the body size caps what one call spends
     maxBodyBytes: 4096,
     price: "0.03",
+    ensLabel: "elevenlabs",
     name: "ElevenLabs voice (George)",
     description:
       'Text to speech with ElevenLabs (voice "George", multilingual v2). Send {"text": "..."} and get back MP3 audio. Up to about 4,000 characters per call.',
@@ -175,6 +182,7 @@ export const TEMPLATES: CreditTemplate[] = [
     exampleBody: { text: "Heavy rain on a tin roof with distant thunder" },
     maxBodyBytes: 2048,
     price: "0.05",
+    ensLabel: "elevenlabs-sfx",
     name: "ElevenLabs sound effects",
     description: 'Sound effect generation with ElevenLabs. Send {"text": "a description of the sound"} and get back MP3 audio.',
   },
@@ -195,6 +203,7 @@ export const TEMPLATES: CreditTemplate[] = [
     exampleBody: { text: "Hello from Tollgate." },
     maxBodyBytes: 4096,
     price: "0.01",
+    ensLabel: "deepgram-voice",
     name: "Deepgram Aura voice",
     description: 'Text to speech with Deepgram Aura. Send {"text": "..."} and get back MP3 audio. Pick a voice with the model query parameter, e.g. model=aura-2-thalia-en.',
   },
@@ -215,6 +224,7 @@ export const TEMPLATES: CreditTemplate[] = [
     exampleBody: { url: "https://dpgr.am/spacewalk.wav" },
     maxBodyBytes: 2048,
     price: "0.02",
+    ensLabel: "deepgram",
     name: "Deepgram transcription",
     description: 'Speech to text with Deepgram Nova. Send {"url": "https://…/audio.mp3"} and get back a JSON transcript.',
   },
@@ -235,6 +245,7 @@ export const TEMPLATES: CreditTemplate[] = [
     bodyOverrides: { formats: ["markdown"] },
     maxBodyBytes: 4096,
     price: "0.01",
+    ensLabel: "firecrawl",
     name: "Firecrawl page scrape",
     description: 'Scrape a web page into clean markdown with Firecrawl. Send {"url": "https://..."} and get back the page content.',
   },
@@ -255,6 +266,7 @@ export const TEMPLATES: CreditTemplate[] = [
     bodyOverrides: { numResults: 5 },
     maxBodyBytes: 4096,
     price: "0.01",
+    ensLabel: "exa-search",
     name: "Exa web search",
     description: 'Web search with Exa, 5 results per call. Send {"query": "..."} and get back titles, URLs and snippets.',
   },
@@ -275,6 +287,7 @@ export const TEMPLATES: CreditTemplate[] = [
     bodyOverrides: { max_results: 5, search_depth: "basic" },
     maxBodyBytes: 4096,
     price: "0.01",
+    ensLabel: "tavily",
     name: "Tavily web search",
     description: 'Web search with Tavily, 5 results per call. Send {"query": "..."} and get back sources and a short answer.',
   },

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { type ReactNode, useState } from "react";
 import { usePayoutScreening } from "@/hooks/useScreening";
 import { INTERCEPTA_URL } from "@/lib/config";
+import { SellerIdentity } from "./Ens";
 import { Logo } from "./ui";
 import { WalletPill } from "./WalletPill";
 
@@ -90,6 +91,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </Link>
           <Nav />
           <div className="mt-auto space-y-3">
+            <SellerIdentity />
             <ScreeningStatus />
             <SidebarCard />
           </div>
@@ -109,6 +111,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </div>
             <Nav onNavigate={() => setOpen(false)} />
             <div className="mt-auto space-y-3">
+              <SellerIdentity onNavigate={() => setOpen(false)} />
               <ScreeningStatus />
               <SidebarCard onNavigate={() => setOpen(false)} />
             </div>
