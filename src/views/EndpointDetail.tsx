@@ -75,7 +75,7 @@ export function EndpointDetailPage() {
       )}
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiTile hero label={`Income · ${range}`} icon={<CircleDollarSign className="size-4" />} value={s ? usdc(s.incomeAtomic, 2) : "—"} foot={`${usdc(e.priceAtomic)} per call`} loading={stats.isPending} trend={s?.series.map((p) => atomicToUsd(p.incomeAtomic))} />
+        <KpiTile hero label={`Income · ${range}`} icon={<CircleDollarSign className="size-4" />} value={s ? usdc(s.incomeAtomic) : "—"} foot={`${usdc(e.priceAtomic)} per call`} loading={stats.isPending} trend={s?.series.map((p) => atomicToUsd(p.incomeAtomic))} />
         <KpiTile label="Paid calls" icon={<Zap className="size-4" />} value={s?.paidCalls.toLocaleString() ?? "—"} foot={`${e.calls.toLocaleString()} all time`} loading={stats.isPending} trend={s?.series.map((p) => p.calls)} />
         <KpiTile label="Failed upstream" icon={<AlertTriangle className="size-4" />} value={s?.failedCalls.toLocaleString() ?? "—"} foot="buyers not charged" loading={stats.isPending} />
         <KpiTile label="Unique payers" icon={<Users className="size-4" />} value={s?.uniquePayers.toLocaleString() ?? "—"} foot={range === "24h" ? "last 24h" : "last 30 days"} loading={stats.isPending} />

@@ -86,7 +86,7 @@ export function EndpointsPage() {
                     <div className="num text-right">{usdc(e.priceAtomic)}</div>
                     <EndpointStatusBadge status={e.status} />
                     <div className="num text-right">{e.calls.toLocaleString()}</div>
-                    <div className="num text-right font-medium">{usdc(e.incomeAtomic, 2)}</div>
+                    <div className="num text-right font-medium">{usdc(e.incomeAtomic)}</div>
                     <CopyUrl url={paidUrl(e.id)} label={`/x/${e.id}`} />
                     <div className="flex justify-end gap-1">
                       {e.status === "active" ? (

@@ -41,7 +41,7 @@ export function IncomeChart({
         <div>
           <div className="card-title">{metric === "income" ? "Income" : "Paid calls"}</div>
           <div className="num mt-1 text-2xl font-semibold tracking-tight">
-            {loading ? <Skeleton className="h-8 w-24" /> : metric === "income" ? usd(total, 2) : total.toLocaleString()}
+            {loading ? <Skeleton className="h-8 w-24" /> : metric === "income" ? usd(total) : total.toLocaleString()}
           </div>
           <div className="card-cap mt-0.5">{range === "24h" ? "last 24 hours, hourly" : "last 30 days, daily"}</div>
         </div>

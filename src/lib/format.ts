@@ -28,14 +28,13 @@ export function atomicToInput(atomic: bigint): string {
   return `${whole}.${frac.padEnd(2, "0")}`;
 }
 
-/** Dollars with enough precision for sub-cent prices. */
-export function usd(n: number, dp?: number): string {
-  const digits = dp ?? (n !== 0 && Math.abs(n) < 0.1 ? 4 : 2);
+/** Every amount shows at least 4 decimals, and up to USDC's 6 so sub-cent prices never round away. */
+export function usd(n: number): string {
   const rounded = Math.round(n * 1e6) / 1e6;
-  return `$${rounded.toLocaleString("en-US", { minimumFractionDigits: Math.min(digits, 2), maximumFractionDigits: digits })}`;
+  return `$${rounded.toLocaleString("en-US", { minimumFractionDigits: 4, maximumFractionDigits: USDC_DECIMALS })}`;
 }
 
-export const usdc = (atomic: bigint, dp?: number) => usd(atomicToUsd(atomic), dp);
+export const usdc = (atomic: bigint) => usd(atomicToUsd(atomic));
 
 export function compact(n: number): string {
   return n.toLocaleString("en-US", { notation: "compact", maximumFractionDigits: 1 });

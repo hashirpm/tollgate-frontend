@@ -8,7 +8,7 @@
 import type { WalletClient } from "viem";
 import type { CatalogItem } from "./api";
 import { CHAIN } from "./config";
-import { atomicToInput } from "./format";
+import { atomicToInput, usdc } from "./format";
 
 export type PayStage = "quote" | "sign" | "call";
 
@@ -57,7 +57,7 @@ export async function payAndCall(opts: {
   client.setSpendControls({ maxAmountPerPayment: `$${atomicToInput(item.priceAtomic)}` });
   client.onBeforePaymentCreation(async ({ selectedRequirements: req }) => {
     if (req.payTo.toLowerCase() !== item.payTo.toLowerCase()) return { abort: true, reason: "The quote pays a different address than this API’s seller." };
-    if (BigInt(req.amount) > item.priceAtomic) return { abort: true, reason: `The gateway quoted more than the listed $${atomicToInput(item.priceAtomic)}.` };
+    if (BigInt(req.amount) > item.priceAtomic) return { abort: true, reason: `The gateway quoted more than the listed ${usdc(item.priceAtomic)}.` };
     onStage?.("sign");
   });
   client.onAfterPaymentCreation(async () => onStage?.("call"));

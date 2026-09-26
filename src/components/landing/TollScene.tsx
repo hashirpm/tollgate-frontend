@@ -72,7 +72,7 @@ export function TollScene() {
               Earned <span className="hidden sm:inline">while you watched</span>
             </div>
             <div className="num font-mono text-sm font-semibold">
-              ${earned.toFixed(2)} <span className="text-[11px] font-normal text-ink-3">· {paid} {paid === 1 ? "call" : "calls"}</span>
+              ${earned.toFixed(4)} <span className="text-[11px] font-normal text-ink-3">· {paid} {paid === 1 ? "call" : "calls"}</span>
             </div>
           </div>
         </div>
@@ -98,7 +98,7 @@ export function TollScene() {
             <span className="text-lime">→</span> GET /v1/forecast
           </div>
           <div className={s.t2}>
-            <span className="text-[#f87171]">←</span> 402 Payment Required · <span className="text-white">$0.01 USDC</span>
+            <span className="text-[#f87171]">←</span> 402 Payment Required · <span className="text-white">$0.0100 USDC</span>
           </div>
           <div className={s.t3}>
             <span className="text-lime">→</span> X-PAYMENT: 0x9f3c…e21a <span className="text-white/40">signed</span>
@@ -140,7 +140,7 @@ function Lane({ lane, second, onPaid }: { lane: (typeof LANES)[number]; second: 
               <Check className="size-3.5" strokeWidth={3} />
             </span>
             <span className="min-w-0 leading-tight">
-              <span className="block truncate text-[10px] text-white/50">paid ${lane.price.toFixed(2)}</span>
+              <span className="block truncate text-[10px] text-white/50">paid ${lane.price.toFixed(4)}</span>
               <span className="block truncate font-mono text-[10px] font-medium sm:text-[11px]">200 OK · {lane.ms}ms</span>
             </span>
           </div>
@@ -175,7 +175,7 @@ function Lane({ lane, second, onPaid }: { lane: (typeof LANES)[number]; second: 
       {/* USDC coin: car → booth */}
       <div className={`absolute z-10 grid size-[22px] place-items-center rounded-full bg-[#2775ca] text-[11px] font-bold text-white shadow-md ring-2 ring-white ${s.coin}`}>$</div>
       {/* +$ pops over the booth */}
-      <div className={`absolute bottom-[50px] left-[calc(62%+45px)] font-mono text-xs font-semibold text-accent ${s.plus}`}>+${lane.price.toFixed(2)}</div>
+      <div className={`absolute bottom-[50px] left-[calc(62%+45px)] font-mono text-xs font-semibold text-accent ${s.plus}`}>+${lane.price.toFixed(4)}</div>
     </div>
   );
 }

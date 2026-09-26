@@ -45,7 +45,7 @@ export function WalletPill() {
           <div className="px-3 pt-2 pb-3">
             <div className="text-xs text-ink-3">Balance</div>
             <div className="num mt-0.5 text-2xl font-semibold">
-              {balance.data === undefined ? "…" : usdc(balance.data, 2)} <span className="text-sm font-normal text-ink-3">USDC</span>
+              {balance.data === undefined ? "…" : usdc(balance.data)} <span className="text-sm font-normal text-ink-3">USDC</span>
             </div>
             <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-2.5 py-1 text-xs text-ink-2">
               <span className="size-1.5 rounded-full bg-good" /> {CHAIN.name}

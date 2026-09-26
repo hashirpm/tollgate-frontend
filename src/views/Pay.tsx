@@ -12,7 +12,7 @@ import { useCatalog } from "@/hooks/useEndpoints";
 import { useUsdcBalance } from "@/hooks/useUsdcBalance";
 import type { CatalogItem } from "@/lib/api";
 import { CHAIN, USDC_FAUCET } from "@/lib/config";
-import { atomicToInput, basescanTx, shortAddr, usdc } from "@/lib/format";
+import { basescanTx, shortAddr, usdc } from "@/lib/format";
 import { jsonError } from "@/lib/json";
 import { type PaidResponse, type PayStage, payAndCall } from "@/lib/pay";
 
@@ -101,7 +101,7 @@ function PayView({ item }: { item: CatalogItem }) {
 
   const bodyError = item.acceptsBody ? jsonError(body) : null;
   const short = balance.data != null && balance.data < item.priceAtomic;
-  const price = `$${atomicToInput(item.priceAtomic)}`;
+  const price = usdc(item.priceAtomic);
 
   return (
     <div className="space-y-4">

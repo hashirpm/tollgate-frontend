@@ -47,7 +47,7 @@ export function OverviewPage() {
             hero
             label={`Income · ${range}`}
             icon={<CircleDollarSign className="size-4" />}
-            value={s ? usdc(s.incomeAtomic, 2) : "—"}
+            value={s ? usdc(s.incomeAtomic) : "—"}
             foot="USDC, settled"
             loading={stats.isPending}
             trend={s?.series.map((p) => atomicToUsd(p.incomeAtomic))}
@@ -65,7 +65,7 @@ export function OverviewPage() {
         <KpiTile
           label="Balance"
           icon={<Wallet className="size-4" />}
-          value={balance.data === undefined ? "—" : usdc(balance.data, 2)}
+          value={balance.data === undefined ? "—" : usdc(balance.data)}
           foot="USDC · Base Sepolia"
           loading={balance.isPending}
         />
@@ -104,7 +104,7 @@ export function OverviewPage() {
                       <div className="text-xs text-ink-3">{e.calls.toLocaleString()} calls</div>
                     </div>
                     <div className="text-right">
-                      <div className="num text-sm">{usdc(e.incomeAtomic, 2)}</div>
+                      <div className="num text-sm">{usdc(e.incomeAtomic)}</div>
                       <div className="mt-0.5">
                         <EndpointStatusBadge status={e.status} />
                       </div>

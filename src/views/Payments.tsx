@@ -76,7 +76,7 @@ export function PaymentsPage() {
               <span>That’s everything</span>
             )}
             <span>
-              Settled in view <span className="num ml-1 text-sm font-medium text-ink">{usdc(settled, 2)}</span>
+              Settled in view <span className="num ml-1 text-sm font-medium text-ink">{usdc(settled)}</span>
             </span>
           </div>
         )}
