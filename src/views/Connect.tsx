@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, ArrowUpRight, AtSign, Check, Plus, ShieldCheck, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, AtSign, ShieldCheck, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type CSSProperties, type PointerEvent, useEffect, useRef, useState } from "react";
 import s from "@/components/landing/landing.module.css";
@@ -9,8 +9,9 @@ import { EnsName } from "@/components/Ens";
 import { SignInPanel } from "@/components/SignInPanel";
 import { Logo, Spinner } from "@/components/ui";
 import { useSession } from "@/lib/auth";
+import { AddToClaudeButton } from "@/components/AddToClaude";
 import { CopyButton } from "@/components/CopyButton";
-import { CHAIN, CLAUDE_CODE_ADD, CLAUDE_CONNECTOR_LINK, INTERCEPTA_URL, MCP_URL } from "@/lib/config";
+import { CHAIN, CLAUDE_CODE_ADD, INTERCEPTA_URL, MCP_URL } from "@/lib/config";
 
 const WORDS = ["API credits.", "voice credits.", "image credits.", "video credits."];
 
@@ -225,38 +226,6 @@ function SignInDialog({ open, onClose, session }: { open: boolean; onClose: () =
         </div>
       </div>
     </dialog>
-  );
-}
-
-/**
- * Claude's install link: opens "Add custom connector" with Tollgate prefilled.
- * Claude doesn't always show that dialog (e.g. a Free plan already at its one
- * custom connector), so the click also copies the URL for Add → Custom connector.
- */
-function AddToClaudeButton({ onCopied }: { onCopied: () => void }) {
-  const [copied, setCopied] = useState(false);
-  const copy = () => {
-    // the manual fallback is shown even if the clipboard write fails
-    onCopied();
-    return navigator.clipboard?.writeText(MCP_URL).then(
-      () => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 6000);
-      },
-      () => {},
-    );
-  };
-  return (
-    <a
-      href={CLAUDE_CONNECTOR_LINK}
-      target="_blank"
-      rel="noreferrer"
-      onClick={copy}
-      className="btn group h-14 rounded-2xl bg-ink px-6 text-base text-white shadow-[0_12px_30px_-12px_rgb(14_17_22/0.6)] hover:bg-ink/90"
-    >
-      {copied ? <Check className="size-5 text-lime" /> : <Plus className="size-5 transition-transform group-hover:rotate-90" />}
-      {copied ? "Opened Claude · URL copied" : "Add to Claude"}
-    </a>
   );
 }
 

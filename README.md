@@ -59,7 +59,7 @@ live in the browser, and the app renders once it's mounted (see
 | `/endpoints/new`, `/endpoints/:id/edit` | Form (basics, auth, static headers, price, example request, guards, **Screen payers with Intercepta**) → **Test** step; a 2xx makes it active |
 | `/endpoints/:id` | Endpoint KPIs, chart, recent calls, paid URL, `curl -i` 402 snippet, `paid_fetch` snippet |
 | `/payments` | Full history, paged with `before=`, filter by endpoint and status; **Not onchain** filter (`?verification=unverified`, linked from the Action center) lists settled payments no USDC transfer backs; **Blocked by Intercepta** tab lists payers the paywall refused |
-| `/claude` | `claude mcp add` command, `.mcp.json`, env vars, faucet link, live `/catalog` preview |
+| `/claude` | Connect Claude to the hosted MCP (Add to Claude connector link, server URL, `claude mcp add --transport http` for Claude Code), Privy sign-in and wallet funding, example prompts, the MCP tools, live `/catalog` preview |
 | `/pay/:id` | Public buyer page: connect wallet, edit the example request, pay with x402 (EIP-712 USDC authorization, no gas), see the response (JSON, text, audio, image) and the BaseScan receipt. Refuses a quote above the catalog price or to another address. **Intercepta screening:** the seller and USDC are checked on load (a flagged seller disables Pay), then the actual quote and the exact authorization are checked before the wallet prompt; a block stops the payment with the reason (`src/lib/pay.ts`) |
 
 Opening a paid URL (`/x/:id`) in a browser redirects to `/pay/:id` with its query
@@ -114,5 +114,5 @@ that one file. Assumptions worth checking against the backend:
 See `.env.example`.
 
 - `GATEWAY_URL`: where `next dev` proxies the API (on Workers, use the `wrangler.jsonc` var or a service binding).
-- `NEXT_PUBLIC_MCP_COMMAND`: how buyers launch the MCP server. It fills in the snippets on
-  **Use with Claude**, and is inlined at build time. Until it's set, that page shows a notice.
+- `NEXT_PUBLIC_MCP_URL`: the hosted MCP server behind **Add to Claude** and **Use with Claude**
+  (defaults to `https://x402-gateway-mcp.tollgate-tokyo.workers.dev/mcp`), inlined at build time.

@@ -15,11 +15,7 @@ export const BASESCAN = "https://sepolia.basescan.org";
 export const INTERCEPTA_URL = "https://intercepta.io";
 export const USDC_FAUCET = "https://faucet.circle.com/";
 
-/**
- * How buyers launch the MCP server. The package isn't published yet, so this
- * is configurable: set NEXT_PUBLIC_MCP_COMMAND (e.g. "npx -y x402-mcp") at build time.
- */
-export const MCP_COMMAND: string | undefined = process.env.NEXT_PUBLIC_MCP_COMMAND || undefined;
+/** The name Claude Code lists the MCP server under. */
 export const MCP_SERVER_NAME = "tollgate";
 
 /** The hosted MCP server (Streamable HTTP, OAuth). Override with NEXT_PUBLIC_MCP_URL at build time. */

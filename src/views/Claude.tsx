@@ -1,74 +1,91 @@
 "use client";
 
-import { Droplets, ExternalLink, Info, ListChecks } from "lucide-react";
+import { Droplets, ExternalLink, ListChecks, ShieldCheck } from "lucide-react";
+import { AddToClaudeButton } from "@/components/AddToClaude";
 import { EnsName } from "@/components/Ens";
 import { CodeBlock } from "@/components/CopyButton";
 import { EmptyState, ErrorState, PageHeader, Skeleton } from "@/components/ui";
 import { useCatalog } from "@/hooks/useEndpoints";
-import { MCP_COMMAND, MCP_SERVER_NAME, USDC_FAUCET } from "@/lib/config";
+import { CLAUDE_CODE_ADD, INTERCEPTA_URL, MCP_URL, USDC_FAUCET } from "@/lib/config";
 import { usd } from "@/lib/format";
 
-const ENV = [
-  { name: "GATEWAY_URL", example: "", desc: "This gateway. Already filled in above." },
-  { name: "BUYER_PRIVATE_KEY", example: "0x…", desc: "Key of the wallet that pays. Use a throwaway testnet wallet funded with Base Sepolia USDC." },
-  { name: "MAX_PER_CALL_USD", example: "0.10", desc: "Refuse any single call priced above this." },
-  { name: "SESSION_BUDGET_USD", example: "5", desc: "Stop paying once this much is spent in one session." },
+// The hosted MCP server (mcp/ in the gateway repo): Claude connects over
+// Streamable HTTP, the user signs in with Privy, and payments come from their
+// own embedded wallet with per-call and daily caps enforced on the server.
+
+const TOOLS = [
+  { name: "list_paid_apis", desc: "Browse what’s for sale here: name, price, example request and the seller’s ENS name." },
+  { name: "paid_fetch", desc: "Call one, paying the listed price in USDC. Screened first; a failed call isn’t charged." },
+  { name: "screen_counterparty", desc: "Check an address or token with Intercepta before trusting it." },
+  { name: "wallet_status", desc: "Your buyer wallet’s address, USDC balance and how much of its budget is used." },
 ];
+
+const PROMPTS = ["What paid APIs are on Tollgate?", "What’s my Tollgate wallet status?", "Use a Tollgate API to …, and show me what it cost."];
 
 export function ClaudePage() {
   const catalog = useCatalog();
-  const origin = location.origin;
-  const cmd = MCP_COMMAND ?? "<mcp-server-command>";
-  const [bin, ...args] = cmd.split(/\s+/);
-  const env = ENV.map((e) => [e.name, e.name === "GATEWAY_URL" ? origin : e.example] as const);
-
-  const addCmd = [`claude mcp add ${MCP_SERVER_NAME}`, ...env.map(([k, v]) => `  -e ${k}=${v}`), `  -- ${cmd}`].join(" \\\n");
-  const mcpJson = JSON.stringify(
-    { mcpServers: { [MCP_SERVER_NAME]: { command: bin, args, env: Object.fromEntries(env) } } },
-    null,
-    2,
-  );
 
   return (
     <>
-      <PageHeader title="Use with Claude" sub="Give Claude a wallet and it can find and buy leftover credits listed on this gateway, one call at a time." />
-
-      {!MCP_COMMAND && (
-        <div className="mb-4 flex items-start gap-3 rounded-2xl border border-warn/40 bg-warn/10 p-4 text-sm">
-          <Info className="mt-0.5 size-4 shrink-0 text-warn-text" />
-          <span>
-            The MCP server command isn’t configured yet. Set <span className="font-mono">NEXT_PUBLIC_MCP_COMMAND</span> at build time and the snippets below fill in.
-          </span>
-        </div>
-      )}
+      <PageHeader title="Use with Claude" sub="Connect Claude and it can find and buy leftover credits listed here, paying per call from its own wallet." />
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_380px]">
         <div className="space-y-4">
           <section className="card card-pad space-y-4">
-            <Step n={1} title="Add the MCP server to Claude Code" />
-            <CodeBlock title="Terminal" code={addCmd} />
-            <p className="text-sm text-ink-2">Or commit it to a project so everyone on the team gets it:</p>
-            <CodeBlock title=".mcp.json" code={mcpJson} />
+            <Step n={1} title="Add Tollgate to Claude" />
+            <div className="flex flex-wrap items-center gap-3">
+              <AddToClaudeButton className="h-11 rounded-xl px-5 text-sm" />
+              <p className="max-w-md text-sm text-ink-2">
+                Opens claude.ai with Tollgate filled in: click <span className="font-medium text-ink">Add</span>. No dialog? Go to{" "}
+                <span className="font-medium text-ink">Customize → Connectors → Add custom connector</span> and paste the server URL.
+              </p>
+            </div>
+            <CodeBlock title="Server URL" code={MCP_URL} />
+            <p className="text-sm text-ink-2">
+              In Claude Code, add it from the terminal, then run <span className="font-mono text-[13px]">/mcp</span> to sign in:
+            </p>
+            <CodeBlock title="Terminal" code={CLAUDE_CODE_ADD} />
           </section>
 
           <section className="card card-pad">
-            <Step n={2} title="Environment" />
-            <dl className="mt-4 divide-y divide-line">
-              {ENV.map((e) => (
-                <div key={e.name} className="grid gap-1 py-3 sm:grid-cols-[200px_1fr] sm:gap-4">
-                  <dt className="font-mono text-[13px]">{e.name}</dt>
-                  <dd className="text-sm text-ink-2">{e.desc}</dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-
-          <section className="card card-pad">
-            <Step n={3} title="Fund the buyer wallet" />
-            <p className="mt-2 text-sm text-ink-2">Claude pays in USDC on Base Sepolia. Circle’s faucet sends free testnet USDC.</p>
+            <Step n={2} title="Sign in and fund your buyer wallet" />
+            <p className="mt-2 text-sm text-ink-2">
+              The first time Claude connects, you sign in with Privy and get a wallet of your own. Tollgate can only use it to pay for calls in USDC on
+              Base Sepolia. Ask Claude for your <span className="font-mono text-[13px]">wallet_status</span> to get its address, then send it testnet
+              USDC from Circle’s faucet.
+            </p>
             <a href={USDC_FAUCET} target="_blank" rel="noreferrer" className="btn btn-primary mt-4">
               <Droplets className="size-4" /> Get testnet USDC <ExternalLink className="size-3.5" />
             </a>
+          </section>
+
+          <section className="card card-pad">
+            <Step n={3} title="Ask Claude to buy" />
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {PROMPTS.map((p) => (
+                <li key={p} className="rounded-full border border-line bg-surface-2 px-3 py-1.5 text-sm">
+                  “{p}”
+                </li>
+              ))}
+            </ul>
+            <dl className="mt-4 divide-y divide-line">
+              {TOOLS.map((t) => (
+                <div key={t.name} className="grid gap-1 py-3 sm:grid-cols-[180px_1fr] sm:gap-4">
+                  <dt className="font-mono text-[13px]">{t.name}</dt>
+                  <dd className="text-sm text-ink-2">{t.desc}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="mt-3 flex items-start gap-2.5 rounded-2xl bg-good/10 p-3.5 text-sm">
+              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-good-text" />
+              <span className="text-ink-2">
+                Every payment is screened by{" "}
+                <a href={INTERCEPTA_URL} target="_blank" rel="noreferrer" className="font-medium text-ink hover:underline">
+                  Intercepta
+                </a>{" "}
+                before it’s signed, and capped per call and per day on the server. Claude never pays more than the listed price.
+              </span>
+            </div>
           </section>
         </div>
 
