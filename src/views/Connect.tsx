@@ -1,14 +1,16 @@
 "use client";
 
-import { ArrowRight, ArrowUpRight, Bot, KeyRound, X, Zap } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Bot, KeyRound, Plus, X, Zap } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import s from "@/components/landing/landing.module.css";
 import { TollScene } from "@/components/landing/TollScene";
 import { SignInPanel } from "@/components/SignInPanel";
 import { Logo, Spinner } from "@/components/ui";
+import { usd } from "@/lib/format";
 import { useSession } from "@/lib/auth";
-import { CHAIN } from "@/lib/config";
+import { CopyButton } from "@/components/CopyButton";
+import { CHAIN, CLAUDE_CODE_ADD, CLAUDE_CONNECTOR_LINK, MCP_URL } from "@/lib/config";
 
 const WORDS = ["your API.", "your model.", "your data.", "every call."];
 
@@ -112,14 +114,19 @@ export function ConnectPage() {
                 <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
               </button>
               <a
-                href="https://x402.org"
+                href={CLAUDE_CONNECTOR_LINK}
                 target="_blank"
                 rel="noreferrer"
-                className="btn h-14 rounded-2xl border border-line-strong bg-surface/70 px-6 text-base text-ink backdrop-blur hover:bg-surface"
+                className="btn group h-14 rounded-2xl bg-ink px-6 text-base text-white shadow-[0_12px_30px_-12px_rgb(14_17_22/0.6)] hover:bg-ink/90"
               >
+                <Plus className="size-5 transition-transform group-hover:rotate-90" />
+                Add to Claude
+              </a>
+              <a href="https://x402.org" target="_blank" rel="noreferrer" className="px-2 text-sm font-medium text-ink-2 underline-offset-4 hover:text-ink hover:underline">
                 How x402 works
               </a>
             </div>
+            <AddToClaudeHelp />
 
             <ul className={`mt-10 flex flex-wrap gap-x-6 gap-y-3 text-sm text-ink-2 ${s.rise}`} style={{ "--i": 5 } as CSSProperties}>
               {[
@@ -177,7 +184,7 @@ function Marquee() {
             >
               <span className={m === "GET" ? "text-good-text" : "text-violet"}>{m}</span>
               <span className="text-ink">{p}</span>
-              <span className="rounded-full bg-lime/40 px-1.5 text-[11px] text-lime-ink">${price}</span>
+              <span className="rounded-full bg-lime/40 px-1.5 text-[11px] text-lime-ink">{usd(Number(price))}</span>
             </span>
           ))}
         </div>
@@ -219,5 +226,24 @@ function SignInDialog({ open, onClose, session }: { open: boolean; onClose: () =
         </div>
       </div>
     </dialog>
+  );
+}
+
+/** Fallbacks for the Add to Claude button: the URL to paste, and the Claude Code one-liner. */
+function AddToClaudeHelp() {
+  return (
+    <div className={`mt-4 max-w-[34rem] text-xs text-ink-3 ${s.rise}`} style={{ "--i": 4 } as CSSProperties}>
+      <p>Opens Claude with Tollgate’s MCP server as a connector. Sign in there and Claude can find and pay for APIs.</p>
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <span className="flex min-w-0 items-center gap-1">
+          URL not filled in?
+          <CopyButton text={MCP_URL} label="Copy server URL" className="h-7 px-2 text-xs" />
+        </span>
+        <span className="flex items-center gap-1">
+          Claude Code:
+          <CopyButton text={CLAUDE_CODE_ADD} label="Copy command" className="h-7 px-2 text-xs" />
+        </span>
+      </div>
+    </div>
   );
 }
