@@ -23,14 +23,14 @@ export const MCP_SERVER_NAME = "tollgate";
 export const MCP_URL = process.env.NEXT_PUBLIC_MCP_URL || "https://x402-gateway-mcp.tollgate-tokyo.workers.dev/mcp";
 
 /**
- * Opens claude.ai's "Add custom connector" dialog. The mcpName / mcpServerUrl
- * prefill params aren't in Anthropic's docs (see anthropics/claude-ai-mcp#74),
- * so the UI next to this link always offers the URL to paste as well.
+ * Claude's documented install link for a custom connector: opens the "Add custom
+ * connector" dialog with name and URL prefilled; the user reviews and confirms.
+ * https://claude.com/docs/connectors/building/directory-vs-custom#custom-connector-install-link
  */
-export const CLAUDE_CONNECTOR_LINK = `https://claude.ai/settings/connectors?${new URLSearchParams({
+export const CLAUDE_CONNECTOR_LINK = `https://claude.ai/customize/connectors?${new URLSearchParams({
   modal: "add-custom-connector",
-  mcpName: APP_NAME,
-  mcpServerUrl: MCP_URL,
+  connectorName: APP_NAME,
+  connectorUrl: MCP_URL,
 })}`;
 
 export const CLAUDE_CODE_ADD = `claude mcp add --transport http ${MCP_SERVER_NAME} ${MCP_URL}`;

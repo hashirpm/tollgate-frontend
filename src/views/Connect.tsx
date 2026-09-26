@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, ArrowUpRight, Bot, KeyRound, Plus, X, Zap } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Bot, Check, KeyRound, Plus, X, Zap } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import s from "@/components/landing/landing.module.css";
@@ -113,15 +113,7 @@ export function ConnectPage() {
                 {cta}
                 <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
               </button>
-              <a
-                href={CLAUDE_CONNECTOR_LINK}
-                target="_blank"
-                rel="noreferrer"
-                className="btn group h-14 rounded-2xl bg-ink px-6 text-base text-white shadow-[0_12px_30px_-12px_rgb(14_17_22/0.6)] hover:bg-ink/90"
-              >
-                <Plus className="size-5 transition-transform group-hover:rotate-90" />
-                Add to Claude
-              </a>
+              <AddToClaudeButton />
               <a href="https://x402.org" target="_blank" rel="noreferrer" className="px-2 text-sm font-medium text-ink-2 underline-offset-4 hover:text-ink hover:underline">
                 How x402 works
               </a>
@@ -229,14 +221,45 @@ function SignInDialog({ open, onClose, session }: { open: boolean; onClose: () =
   );
 }
 
-/** Fallbacks for the Add to Claude button: the URL to paste, and the Claude Code one-liner. */
+/**
+ * Claude's install link: opens "Add custom connector" with Tollgate prefilled.
+ * Claude doesn't always show that dialog (e.g. a Free plan already at its one
+ * custom connector), so the click also copies the URL for Add → Custom connector.
+ */
+function AddToClaudeButton() {
+  const [copied, setCopied] = useState(false);
+  const copy = () =>
+    navigator.clipboard?.writeText(MCP_URL).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 6000);
+      },
+      () => {},
+    );
+  return (
+    <a
+      href={CLAUDE_CONNECTOR_LINK}
+      target="_blank"
+      rel="noreferrer"
+      onClick={copy}
+      className="btn group h-14 rounded-2xl bg-ink px-6 text-base text-white shadow-[0_12px_30px_-12px_rgb(14_17_22/0.6)] hover:bg-ink/90"
+    >
+      {copied ? <Check className="size-5 text-lime" /> : <Plus className="size-5 transition-transform group-hover:rotate-90" />}
+      {copied ? "Opened Claude · URL copied" : "Add to Claude"}
+    </a>
+  );
+}
+
+/** What happens after the click, plus the manual URL and the Claude Code one-liner. */
 function AddToClaudeHelp() {
   return (
     <div className={`mt-4 max-w-[34rem] text-xs text-ink-3 ${s.rise}`} style={{ "--i": 4 } as CSSProperties}>
-      <p>Opens Claude with Tollgate’s MCP server as a connector. Sign in there and Claude can find and pay for APIs.</p>
+      <p>
+        Opens Claude with Tollgate filled in: click <span className="font-medium text-ink-2">Add</span>, then sign in. No dialog? The server URL is
+        already copied, so use <span className="font-medium text-ink-2">Add → Custom connector</span> and paste it.
+      </p>
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <span className="flex min-w-0 items-center gap-1">
-          URL not filled in?
           <CopyButton text={MCP_URL} label="Copy server URL" className="h-7 px-2 text-xs" />
         </span>
         <span className="flex items-center gap-1">
