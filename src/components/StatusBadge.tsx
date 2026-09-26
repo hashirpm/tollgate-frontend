@@ -1,5 +1,5 @@
-import { CircleCheck, CircleDashed, CirclePause, CircleX } from "lucide-react";
-import type { CallStatus, EndpointStatus } from "@/lib/api";
+import { CircleCheck, CircleDashed, CirclePause, CircleX, ShieldAlert, ShieldX } from "lucide-react";
+import type { CallStatus, EndpointStatus, Verdict } from "@/lib/api";
 
 // Status never rides on color alone: every badge is icon + label.
 
@@ -29,6 +29,22 @@ export function CallStatusBadge({ status }: { status: CallStatus }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-xs whitespace-nowrap text-bad-text" title="The upstream API failed, so the buyer was not charged">
       <CircleX className="size-3.5" /> Failed upstream · not charged
+    </span>
+  );
+}
+
+/** A small shield next to a payer Intercepta flagged; nothing for clean or unscreened payers. */
+export function PayerRisk({ verdict }: { verdict: Verdict | null }) {
+  if (verdict !== "warn" && verdict !== "block") return null;
+  const block = verdict === "block";
+  const Icon = block ? ShieldX : ShieldAlert;
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1 text-[11px] font-medium ${block ? "text-bad-text" : "text-warn-text"}`}
+      title={block ? "Intercepta flagged this payer; new payments from it are refused" : "Intercepta found minor flags on this payer"}
+    >
+      <Icon className="size-3.5" />
+      {block ? "Flagged" : "Risk"}
     </span>
   );
 }

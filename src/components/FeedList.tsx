@@ -3,9 +3,10 @@
 import { ExternalLink, Radio } from "lucide-react";
 import Link from "next/link";
 import type { FeedRow } from "@/hooks/useFeed";
+import type { Verdict } from "@/lib/api";
 import { useNow } from "@/hooks/useNow";
 import { ago, basescanAddress, basescanTx, clock, shortAddr, usdc } from "@/lib/format";
-import { CallStatusBadge } from "./StatusBadge";
+import { CallStatusBadge, PayerRisk } from "./StatusBadge";
 import { Avatar, EmptyState, ErrorState, LiveDot, Skeleton } from "./ui";
 
 const COLS = "grid-cols-[76px_minmax(140px,1.3fr)_minmax(120px,1fr)_90px_minmax(150px,1fr)_110px]";
@@ -77,9 +78,9 @@ export function FeedList({
                     {r.endpointName}
                   </Link>
                 ) : (
-                  <PayerCell payer={r.payer} />
+                  <PayerCell payer={r.payer} verdict={r.payerVerdict} />
                 )}
-                <div className="min-w-0">{showEndpoint && <PayerCell payer={r.payer} />}</div>
+                <div className="min-w-0">{showEndpoint && <PayerCell payer={r.payer} verdict={r.payerVerdict} />}</div>
                 <div className={`num text-right ${r.status === "settled" ? "text-ink" : "text-ink-3 line-through"}`}>{usdc(r.amountAtomic)}</div>
                 <CallStatusBadge status={r.status} />
                 <div className="text-right">
@@ -100,11 +101,14 @@ export function FeedList({
   );
 }
 
-export function PayerCell({ payer }: { payer: string }) {
+export function PayerCell({ payer, verdict = null }: { payer: string; verdict?: Verdict | null }) {
   return (
-    <a href={basescanAddress(payer)} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-2 hover:underline">
-      <Avatar seed={payer} size={22} />
-      <span className="truncate font-mono text-xs">{shortAddr(payer)}</span>
-    </a>
+    <div className="flex min-w-0 items-center gap-2">
+      <a href={basescanAddress(payer)} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-2 hover:underline">
+        <Avatar seed={payer} size={22} />
+        <span className="truncate font-mono text-xs">{shortAddr(payer)}</span>
+      </a>
+      <PayerRisk verdict={verdict} />
+    </div>
   );
 }

@@ -7,14 +7,16 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useAccount, useConnect, useConnectors, useDisconnect, useSwitchChain, useWalletClient } from "wagmi";
 import { JsonField } from "@/components/FormFields";
+import { ScreeningPanel } from "@/components/Screening";
 import { Avatar, EmptyState, ErrorState, Logo, Skeleton, Spinner } from "@/components/ui";
 import { useCatalog } from "@/hooks/useEndpoints";
+import { usePreScreen } from "@/hooks/useScreening";
 import { useUsdcBalance } from "@/hooks/useUsdcBalance";
-import type { CatalogItem } from "@/lib/api";
+import type { CatalogItem, Screening } from "@/lib/api";
 import { CHAIN, USDC_FAUCET } from "@/lib/config";
 import { basescanTx, shortAddr, usdc } from "@/lib/format";
 import { jsonError } from "@/lib/json";
-import { type PaidResponse, type PayStage, payAndCall } from "@/lib/pay";
+import { type PaidResponse, type PayStage, payAndCall, ScreeningBlocked } from "@/lib/pay";
 
 export function PayPage() {
   const { id } = useParams<{ id: string }>();
@@ -77,6 +79,7 @@ function TopBar() {
 
 const STAGE_LABEL: Record<PayStage, string> = {
   quote: "Getting the price…",
+  screen: "Screening with Intercepta…",
   sign: "Confirm in your wallet…",
   call: "Calling the API…",
 };
@@ -89,11 +92,18 @@ function PayView({ item }: { item: CatalogItem }) {
   const { address, chainId, isConnected } = useAccount();
   const { data: wallet } = useWalletClient();
   const balance = useUsdcBalance(address);
+  // Before paying: Intercepta on the seller's address and USDC. While paying: the
+  // actual quote and the authorization, as each screen comes back.
+  const pre = usePreScreen(item.payTo);
+  const [live, setLive] = useState<Screening[]>([]);
 
   const pay = useMutation({
-    mutationFn: () => payAndCall({ item, wallet: wallet!, address: address!, query, body, onStage: setStage }),
+    mutationFn: () =>
+      payAndCall({ item, wallet: wallet!, address: address!, query, body, onStage: setStage, onScreen: (s) => setLive((l) => [...l, s]) }),
     onSettled: () => balance.refetch(),
   });
+  const screenings = live.length ? live : pre.data ? [pre.data] : [];
+  const flagged = pre.data?.verdict === "block";
 
   // object URLs hold the whole response in memory until revoked
   const blobUrl = pay.data?.blobUrl;
@@ -166,9 +176,10 @@ function PayView({ item }: { item: CatalogItem }) {
                 )}
                 <button
                   className="btn btn-primary h-12 w-full text-[15px]"
-                  disabled={pay.isPending || !wallet || short || !!bodyError}
+                  disabled={pay.isPending || !wallet || short || !!bodyError || flagged}
                   onClick={() => {
                     pay.reset();
+                    setLive([]);
                     pay.mutate();
                   }}
                 >
@@ -176,8 +187,12 @@ function PayView({ item }: { item: CatalogItem }) {
                   {pay.isPending ? STAGE_LABEL[stage] : `Pay ${price} and call`}
                 </button>
                 {bodyError && <p className="text-xs text-bad-text">Fix the JSON body first.</p>}
+                {flagged && <p className="text-xs text-bad-text">Intercepta flagged this seller, so paying is disabled.</p>}
               </>
             )}
+            <div className="border-t border-line pt-4">
+              <ScreeningPanel screenings={screenings} loading={pre.isPending || (pay.isPending && stage === "screen")} error={live.length ? null : pre.error} />
+            </div>
             <ul className="space-y-2 border-t border-line pt-4 text-xs text-ink-2">
               <li className="flex gap-2">
                 <ShieldCheck className="size-4 shrink-0 text-good-text" />
@@ -192,7 +207,9 @@ function PayView({ item }: { item: CatalogItem }) {
         </aside>
       </div>
 
-      {pay.error && <ErrorState title="Not charged" error={new Error(friendlyError(pay.error))} />}
+      {pay.error && (
+        <ErrorState title={pay.error instanceof ScreeningBlocked ? "Blocked before signing" : "Not charged"} error={new Error(friendlyError(pay.error))} />
+      )}
       {pay.data && <ResponseCard r={pay.data} />}
     </div>
   );
@@ -295,7 +312,9 @@ function ResponseCard({ r }: { r: PaidResponse }) {
 }
 
 function friendlyError(e: unknown): string {
+  if (e instanceof ScreeningBlocked) return e.message;
   const msg = e instanceof Error ? e.message : String(e);
+  if (/Blocked by Intercepta/.test(msg)) return msg.replace(/^.*?(Blocked by Intercepta)/, "$1");
   const code = (e as { code?: number } | null)?.code;
   if (code === 4001 || /user rejected|user denied|rejected the request|denied (transaction|message) signature/i.test(msg)) return "You cancelled in your wallet. Nothing was charged.";
   // x402's own cap (set to the listed price) or our payTo/price check

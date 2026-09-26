@@ -26,7 +26,7 @@ export function CallsTable({ rows }: { rows: Call[] }) {
             <Link href={`/endpoints/${r.endpointId}`} className="truncate font-medium hover:underline">
               {r.endpointName}
             </Link>
-            <PayerCell payer={r.payer} />
+            <PayerCell payer={r.payer} verdict={r.payerVerdict} />
             <div className={`num text-right ${r.status === "settled" ? "text-ink" : "text-ink-3 line-through"}`}>{usdc(r.amountAtomic)}</div>
             <div>
               <CallStatusBadge status={r.status} />

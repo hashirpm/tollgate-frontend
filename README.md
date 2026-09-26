@@ -26,8 +26,8 @@ from reading the USDC balance from Base Sepolia.
 ## Hosting
 
 The dashboard is its own Worker (`tollgate-dashboard`, see `wrangler.jsonc`),
-built by `@opennextjs/cloudflare`. Route handlers proxy `/api/*`, `/x/*` and
-`/catalog` to the gateway Worker (`src/lib/gateway-proxy.ts`), so the browser
+built by `@opennextjs/cloudflare`. Route handlers proxy `/api/*`, `/x/*`,
+`/catalog` and `/screen` to the gateway Worker (`src/lib/gateway-proxy.ts`), so the browser
 only ever sees one origin: no CORS, and the bearer token stays same-origin.
 
 Proxy target, read at runtime (no rebuild per environment):
@@ -48,13 +48,13 @@ live in the browser, and the app renders once it's mounted (see
 | Route | |
 | --- | --- |
 | `/` | Connect wallet → switch to Base Sepolia → Sign-In With Ethereum |
-| `/dashboard` | KPIs (income, paid calls, failed upstream, unique payers, wallet USDC), income/calls chart (24h hourly / 30d daily), live feed (polls every 2s) |
+| `/dashboard` | KPIs (income, paid calls, failed upstream, unique payers, wallet USDC), income/calls chart (24h hourly / 30d daily), Intercepta card (payout address check, payers blocked in 30 days), live feed (polls every 2s, flagged payers marked) |
 | `/endpoints` | Table with status, calls, income, paid URL; pause / activate / edit / delete |
-| `/endpoints/new`, `/endpoints/:id/edit` | Form (basics, auth, static headers, price, example request, guards) → **Test** step; a 2xx makes it active |
+| `/endpoints/new`, `/endpoints/:id/edit` | Form (basics, auth, static headers, price, example request, guards, **Screen payers with Intercepta**) → **Test** step; a 2xx makes it active |
 | `/endpoints/:id` | Endpoint KPIs, chart, recent calls, paid URL, `curl -i` 402 snippet, `paid_fetch` snippet |
-| `/payments` | Full history, paged with `before=`, filter by endpoint and status |
+| `/payments` | Full history, paged with `before=`, filter by endpoint and status; **Blocked by Intercepta** tab lists payers the paywall refused |
 | `/claude` | `claude mcp add` command, `.mcp.json`, env vars, faucet link, live `/catalog` preview |
-| `/pay/:id` | Public buyer page: connect wallet, edit the example request, pay with x402 (EIP-712 USDC authorization, no gas), see the response (JSON, text, audio, image) and the BaseScan receipt. Refuses a quote above the catalog price or to another address |
+| `/pay/:id` | Public buyer page: connect wallet, edit the example request, pay with x402 (EIP-712 USDC authorization, no gas), see the response (JSON, text, audio, image) and the BaseScan receipt. Refuses a quote above the catalog price or to another address. **Intercepta screening:** the seller and USDC are checked on load (a flagged seller disables Pay), then the actual quote and the exact authorization are checked before the wallet prompt; a block stops the payment with the reason (`src/lib/pay.ts`) |
 
 Opening a paid URL (`/x/:id`) in a browser redirects to `/pay/:id` with its query
 string; API clients and the pay page's own `fetch()` are proxied to the gateway as
@@ -87,8 +87,13 @@ that one file. Assumptions worth checking against the backend:
 - Stats: `GET /api/stats?range=24h|30d&endpoint_id=` → `{ income_atomic, paid_calls,
   failed_calls, unique_payers, series: [{ bucket, income_atomic, calls }] }`.
 - Feed: `GET /api/feed?since|before|endpoint_id|status|limit` → rows with `id, ts,
-  endpoint_id, endpoint_name, payer, amount_atomic, status (settled | failed_upstream),
-  tx_hash`. `ts` is passed back verbatim as the cursor (seconds, ms or ISO all work).
+  endpoint_id, endpoint_name, payer, amount_atomic, settled (boolean), tx_hash`; the
+  status filter sends `settled | failed`. `ts` is passed back verbatim as the cursor (seconds, ms or ISO all work).
+- Screening (Intercepta, key held by the gateway): `POST /screen {pay_to?, asset?, payer?,
+  amount?, authorization?}` → `{ verdict: allow | warn | block, enabled, summary, checks[] }`;
+  `GET /api/screenings?verdict=block` → `{ enabled, blocked_30d, blocked_30d_usd, screenings }`;
+  `GET /api/screen/payout`; endpoints carry `screen_payers`; feed rows carry `payer_verdict`;
+  catalog rows carry `pay_to_risk`. Screening failures fail closed on the pay page.
 - Lists may be bare arrays or wrapped (`{ endpoints: [...] }`, `{ calls: [...] }`).
 
 ## Config

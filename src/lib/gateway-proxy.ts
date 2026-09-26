@@ -1,4 +1,4 @@
-// Server-only: forwards /api/*, /x/* and /catalog to the gateway Worker, so the
+// Server-only: forwards /api/*, /x/*, /catalog and /screen to the gateway Worker, so the
 // browser only ever talks to the dashboard's origin (no CORS, and the bearer
 // token never crosses origins).
 //

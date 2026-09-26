@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CircleCheck, CircleX, FlaskConical, Info, RotateCcw, Save } from "lucide-react";
+import { ArrowLeft, CircleCheck, CircleX, FlaskConical, Info, RotateCcw, Save, ShieldCheck } from "lucide-react";
 import { type FormEvent, type ReactNode, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -45,6 +45,7 @@ interface FormState {
   exampleBody: string;
   bodyOverrides: string;
   maxBodyBytes: string;
+  screenPayers: boolean;
 }
 
 function initialState(ep?: Endpoint): FormState {
@@ -62,6 +63,7 @@ function initialState(ep?: Endpoint): FormState {
     exampleBody: ep?.exampleBody ?? "",
     bodyOverrides: ep?.bodyOverrides ?? "",
     maxBodyBytes: String(ep?.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES),
+    screenPayers: ep?.screenPayers ?? true,
   };
 }
 
@@ -135,6 +137,7 @@ function toInput(f: FormState): EndpointInput {
     example_body: hasBody && f.exampleBody.trim() ? parseJson(f.exampleBody) : null,
     body_overrides: hasBody && f.bodyOverrides.trim() ? (parseJson(f.bodyOverrides) as Record<string, unknown>) : null,
     max_body_bytes: Number(f.maxBodyBytes.trim()),
+    screen_payers: f.screenPayers,
   };
 }
 
@@ -163,6 +166,7 @@ const ISSUE_FIELDS: [string, keyof FormState][] = [
   ["example_body", "exampleBody"],
   ["body_overrides", "bodyOverrides"],
   ["max_body_bytes", "maxBodyBytes"],
+  ["screen_payers", "screenPayers"],
   ["description", "description"],
   ["method", "method"],
   ["name", "name"],
@@ -456,6 +460,23 @@ function EndpointForm({ existing }: { existing?: Endpoint }) {
                 />
               </div>
             </Field>
+
+            <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-line p-3.5 hover:bg-surface-2">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4 accent-[var(--color-accent)]"
+                checked={f.screenPayers}
+                onChange={(e) => set("screenPayers", e.target.checked)}
+              />
+              <span className="min-w-0">
+                <span className="flex items-center gap-1.5 text-sm font-medium">
+                  <ShieldCheck className="size-4 text-good-text" /> Screen payers with Intercepta
+                </span>
+                <span className="mt-0.5 block text-xs text-ink-2">
+                  Refuse payments from sanctioned, scam or phishing wallets before they settle. Changing this needs no re-test.
+                </span>
+              </span>
+            </label>
 
             {saved && (
               <div>

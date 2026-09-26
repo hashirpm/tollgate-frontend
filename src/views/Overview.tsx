@@ -6,6 +6,7 @@ import Link from "next/link";
 import { FeedList } from "@/components/FeedList";
 import { IncomeChart } from "@/components/IncomeChart";
 import { KpiTile } from "@/components/KpiTile";
+import { ProtectionCard } from "@/components/Screening";
 import { EndpointStatusBadge } from "@/components/StatusBadge";
 import { Avatar, EmptyState, ErrorState, PageHeader, Skeleton } from "@/components/ui";
 import { useEndpoints } from "@/hooks/useEndpoints";
@@ -115,6 +116,10 @@ export function OverviewPage() {
             </ul>
           )}
         </div>
+      </section>
+
+      <section className="mt-4">
+        <ProtectionCard />
       </section>
 
       <section className="mt-4">

@@ -136,6 +136,8 @@ export interface Endpoint {
   /** Pretty-printed JSON object, "" when unset. */
   bodyOverrides: string;
   maxBodyBytes: number;
+  /** Intercepta screens each payer before their payment is accepted. */
+  screenPayers: boolean;
   status: EndpointStatus;
   calls: number;
   incomeAtomic: bigint;
@@ -160,6 +162,7 @@ export interface EndpointInput {
   example_body: unknown;
   body_overrides: Record<string, unknown> | null;
   max_body_bytes: number;
+  screen_payers: boolean;
 }
 
 export type EndpointPatch = Partial<EndpointInput> & { status?: "active" | "paused" };
@@ -198,7 +201,61 @@ export interface Call {
   status: CallStatus;
   txHash: string | null;
   upstreamStatus: number | null;
+  /** Latest Intercepta screening of this payer, null if never screened. */
+  payerVerdict: Verdict | null;
 }
+
+// ---------- screening (Intercepta, through the gateway's POST /screen) ----------
+
+export type Verdict = "allow" | "warn" | "block";
+export type CheckStatus = "pass" | "warn" | "block" | "skipped";
+
+export interface ScreenCheck {
+  kind: "pay_to" | "payer" | "token" | "authorization";
+  label: string;
+  status: CheckStatus;
+  reason: string;
+  subject: string;
+  flags?: string[];
+}
+
+export interface Screening {
+  verdict: Verdict;
+  /** false: the gateway has no Intercepta key, every check was skipped. */
+  enabled: boolean;
+  summary: string;
+  checks: ScreenCheck[];
+}
+
+export interface ScreenRequest {
+  pay_to?: string;
+  asset?: string;
+  payer?: string;
+  amount?: string;
+  authorization?: unknown;
+}
+
+/** A payer the seller's paywall screened. */
+export interface PayerScreening {
+  id: string;
+  t: number;
+  endpointId: string;
+  endpointName: string;
+  payer: string;
+  verdict: Verdict;
+  summary: string;
+  checks: ScreenCheck[];
+  amountAtomic: bigint;
+}
+
+export interface ScreeningList {
+  enabled: boolean;
+  blocked30d: number;
+  blocked30dUsd: string;
+  rows: PayerScreening[];
+}
+
+export type PayoutScreening = Screening & { address: string; poisoned: boolean | null };
 
 export interface TestResult {
   ok: boolean;
@@ -224,6 +281,8 @@ export interface CatalogItem {
   exampleQuery: string;
   /** Pretty-printed JSON text, "" when unset. */
   exampleBody: string;
+  /** Intercepta's verdict on the seller's address, null when screening is off. */
+  payToRisk: { verdict: Verdict; summary: string } | null;
 }
 
 // ---------- normalizers ----------
@@ -301,6 +360,7 @@ function toEndpoint(r: Raw): Endpoint {
     exampleBody: jsonText(r.example_body),
     bodyOverrides: jsonText(r.body_overrides),
     maxBodyBytes: num(r.max_body_bytes, DEFAULT_MAX_BODY_BYTES),
+    screenPayers: r.screen_payers !== false,
     status: (str(r.status, "pending") as EndpointStatus) || "pending",
     calls: num(r.calls),
     incomeAtomic: big(r.income_atomic),
@@ -316,8 +376,14 @@ function safeParse(s: string): unknown {
   }
 }
 
+function verdictOf(v: unknown): Verdict | null {
+  return v === "allow" || v === "warn" || v === "block" ? v : null;
+}
+
 function toCall(r: Raw): Call {
   const status = str(r.status);
+  // the feed sends settled: true|false; older shapes sent a status string
+  const settled = r.settled === true || r.settled === 1 || status === "settled" || status === "paid";
   return {
     id: str(r.id ?? r.call_id ?? `${r.ts}-${r.payer}`),
     cursor: (r.ts ?? r.created_at ?? r.t) as string | number,
@@ -326,9 +392,33 @@ function toCall(r: Raw): Call {
     endpointName: str(r.endpoint_name, str(r.endpoint_id)),
     payer: str(r.payer ?? r.from),
     amountAtomic: big(r.amount_atomic ?? r.price_atomic),
-    status: status === "settled" || status === "paid" ? "settled" : "failed_upstream",
+    status: settled ? "settled" : "failed_upstream",
     txHash: r.tx_hash ? str(r.tx_hash) : null,
     upstreamStatus: r.upstream_status == null ? null : num(r.upstream_status),
+    payerVerdict: verdictOf(r.payer_verdict),
+  };
+}
+
+function toScreening(r: Raw): Screening {
+  return {
+    verdict: verdictOf(r.verdict) ?? "block",
+    enabled: r.enabled !== false,
+    summary: str(r.summary),
+    checks: list(r.checks) as unknown as ScreenCheck[],
+  };
+}
+
+function toPayerScreening(r: Raw): PayerScreening {
+  return {
+    id: str(r.id),
+    t: toMs(r.created_at),
+    endpointId: str(r.endpoint_id),
+    endpointName: str(r.endpoint_name, str(r.endpoint_id)),
+    payer: str(r.payer),
+    verdict: verdictOf(r.verdict) ?? "block",
+    summary: str(r.summary),
+    checks: list(r.checks) as unknown as ScreenCheck[],
+    amountAtomic: big(r.amount_atomic),
   };
 }
 
@@ -357,6 +447,9 @@ function toCatalogItem(r: Raw): CatalogItem {
     acceptsBody: r.accepts_body == null ? !["GET", "HEAD"].includes(str(r.method, "GET").toUpperCase()) : Boolean(r.accepts_body),
     exampleQuery: str((r.example as Raw | undefined)?.query),
     exampleBody: jsonText((r.example as Raw | undefined)?.body),
+    payToRisk: r.pay_to_risk && typeof r.pay_to_risk === "object"
+      ? { verdict: verdictOf((r.pay_to_risk as Raw).verdict) ?? "warn", summary: str((r.pay_to_risk as Raw).summary) }
+      : null,
   };
 }
 
@@ -401,7 +494,26 @@ export const api = {
       }),
     ),
 
-  feed: (q: FeedQuery) => request<unknown>("GET", "/api/feed", { query: { ...q } }).then((d) => list(d, "feed", "calls").map(toCall)),
+  // the Worker calls a failed call "failed"
+  feed: (q: FeedQuery) =>
+    request<unknown>("GET", "/api/feed", { query: { ...q, status: q.status === "failed_upstream" ? "failed" : q.status } }).then((d) =>
+      list(d, "feed", "calls").map(toCall),
+    ),
+
+  screen: (body: ScreenRequest) => request<Raw>("POST", "/screen", { auth: false, body }).then(toScreening),
+  screenings: (q: { verdict?: Verdict; before?: number; limit?: number } = {}) =>
+    request<Raw>("GET", "/api/screenings", { query: { ...q } }).then(
+      (d): ScreeningList => ({
+        enabled: Boolean(d.enabled),
+        blocked30d: num(d.blocked_30d),
+        blocked30dUsd: str(d.blocked_30d_usd, "0"),
+        rows: list(d.screenings).map(toPayerScreening),
+      }),
+    ),
+  payoutScreening: () =>
+    request<Raw>("GET", "/api/screen/payout").then(
+      (d): PayoutScreening => ({ ...toScreening(d), address: str(d.address), poisoned: typeof d.poisoned === "boolean" ? d.poisoned : null }),
+    ),
 
   catalog: () => request<unknown>("GET", "/catalog", { auth: false }).then((d) => list(d, "endpoints", "apis").map(toCatalogItem)),
 };

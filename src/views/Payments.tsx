@@ -1,11 +1,13 @@
 "use client";
 
-import { Receipt } from "lucide-react";
+import { Receipt, ShieldCheck, ShieldX } from "lucide-react";
 import { useState } from "react";
 import { CallsTable } from "@/components/CallsTable";
+import { ScreeningsTable } from "@/components/Screening";
 import { EmptyState, ErrorState, PageHeader, Skeleton, Spinner } from "@/components/ui";
 import { useEndpoints } from "@/hooks/useEndpoints";
 import { usePayments } from "@/hooks/useFeed";
+import { useScreenings } from "@/hooks/useScreening";
 import type { CallStatus } from "@/lib/api";
 import { usdc } from "@/lib/format";
 
@@ -18,6 +20,9 @@ const STATUS: { id: CallStatus | undefined; label: string }[] = [
 export function PaymentsPage() {
   const [endpointId, setEndpointId] = useState<string>("");
   const [status, setStatus] = useState<CallStatus | undefined>(undefined);
+  const [blocked, setBlocked] = useState(false);
+  const screenings = useScreenings("block");
+  const blockedCount = screenings.data?.pages[0]?.blocked30d ?? 0;
   const endpoints = useEndpoints();
   const pages = usePayments({ endpointId: endpointId || undefined, status });
   const rows = pages.data?.pages.flat() ?? [];
@@ -31,11 +36,24 @@ export function PaymentsPage() {
         <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="flex flex-wrap gap-2">
             {STATUS.map((s) => (
-              <button key={s.label} className="chip" data-active={status === s.id} onClick={() => setStatus(s.id)}>
+              <button
+                key={s.label}
+                className="chip"
+                data-active={!blocked && status === s.id}
+                onClick={() => {
+                  setBlocked(false);
+                  setStatus(s.id);
+                }}
+              >
                 {s.label}
               </button>
             ))}
+            <button className="chip gap-1.5" data-active={blocked} onClick={() => setBlocked(true)}>
+              <ShieldX className="size-3.5" /> Blocked by Intercepta
+              {blockedCount > 0 && <span className="num rounded-full bg-bad/10 px-1.5 text-[11px] text-bad-text">{blockedCount}</span>}
+            </button>
           </div>
+          {!blocked && (
           <select className="input h-9 w-full sm:w-56" value={endpointId} onChange={(e) => setEndpointId(e.target.value)} aria-label="Filter by endpoint">
             <option value="">All endpoints</option>
             {endpoints.data?.map((e) => (
@@ -44,9 +62,12 @@ export function PaymentsPage() {
               </option>
             ))}
           </select>
+          )}
         </div>
 
-        {pages.isPending ? (
+        {blocked ? (
+          <BlockedList q={screenings} />
+        ) : pages.isPending ? (
           <div className="space-y-3 px-6 pb-6">
             {Array.from({ length: 8 }, (_, i) => (
               <Skeleton key={i} className="h-10 w-full" />
@@ -64,7 +85,7 @@ export function PaymentsPage() {
           <CallsTable rows={rows} />
         )}
 
-        {rows.length > 0 && (
+        {!blocked && rows.length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-4 text-xs text-ink-3 sm:px-6">
             <span className="num">{rows.length.toLocaleString()} calls loaded</span>
             {pages.hasNextPage ? (
@@ -79,6 +100,50 @@ export function PaymentsPage() {
               Settled in view <span className="num ml-1 text-sm font-medium text-ink">{usdc(settled)}</span>
             </span>
           </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+function BlockedList({ q }: { q: ReturnType<typeof useScreenings> }) {
+  const rows = q.data?.pages.flatMap((p) => p.rows) ?? [];
+  const enabled = q.data?.pages[0]?.enabled ?? true;
+  if (q.isPending) {
+    return (
+      <div className="space-y-3 px-6 pb-6">
+        {Array.from({ length: 4 }, (_, i) => (
+          <Skeleton key={i} className="h-10 w-full" />
+        ))}
+      </div>
+    );
+  }
+  if (q.error) {
+    return (
+      <div className="px-6 pb-6">
+        <ErrorState error={q.error} onRetry={() => q.refetch()} />
+      </div>
+    );
+  }
+  if (!rows.length) {
+    return (
+      <EmptyState icon={<ShieldCheck className="size-5" />} title={enabled ? "No blocked payers" : "Screening is off"}>
+        {enabled
+          ? "Before accepting a payment, the gateway checks the payer with Intercepta. Sanctioned or scam wallets are refused and listed here."
+          : "Add an Intercepta API key to the gateway to screen payers before accepting their money."}
+      </EmptyState>
+    );
+  }
+  return (
+    <>
+      <ScreeningsTable rows={rows} />
+      <div className="flex items-center justify-between border-t border-line px-5 py-4 text-xs text-ink-3 sm:px-6">
+        <span>Refused before settlement, so no USDC moved.</span>
+        {q.hasNextPage && (
+          <button className="btn btn-ghost btn-sm" onClick={() => q.fetchNextPage()} disabled={q.isFetchingNextPage}>
+            {q.isFetchingNextPage && <Spinner />}
+            Load older
+          </button>
         )}
       </div>
     </>

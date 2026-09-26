@@ -4,13 +4,34 @@
 // catalog, has the wallet sign a USDC transferWithAuthorization (EIP-712, no gas),
 // and retries with the signature. The gateway only settles if the upstream
 // succeeds, so a failed call costs nothing.
+//
+// Intercepta screens the payment twice before the wallet is asked to sign: the
+// quote's recipient and token, then the exact authorization. A flagged payment
+// is stopped before the signature prompt (via the gateway's POST /screen, which
+// holds the API key).
 
 import type { WalletClient } from "viem";
-import type { CatalogItem } from "./api";
+import { api, type CatalogItem, type Screening } from "./api";
 import { CHAIN } from "./config";
 import { atomicToInput, usdc } from "./format";
 
-export type PayStage = "quote" | "sign" | "call";
+export type PayStage = "quote" | "screen" | "sign" | "call";
+
+/** Thrown when Intercepta (or an unreachable screen) stops the payment before signing. */
+export class ScreeningBlocked extends Error {
+  constructor(readonly screening: Screening) {
+    super(`Blocked by Intercepta: ${screening.summary}. Nothing was signed.`);
+  }
+}
+
+/** Fail closed: no answer from screening means no signature. */
+async function screen(body: Parameters<typeof api.screen>[0]): Promise<Screening> {
+  try {
+    return await api.screen(body);
+  } catch (e) {
+    return { verdict: "block", enabled: true, summary: `screening unavailable (${e instanceof Error ? e.message : String(e)})`, checks: [] };
+  }
+}
 
 export type Receipt = { paid: true; amountAtomic: bigint; tx: string; payer: string | null } | { paid: false; reason: string };
 
@@ -24,6 +45,7 @@ export interface PaidResponse {
   blobUrl: string | null;
   size: number;
   receipt: Receipt;
+  screenings: Screening[];
 }
 
 const TEXTUAL = /^text\/|json|xml|javascript|x-www-form-urlencoded|graphql/i;
@@ -35,8 +57,19 @@ export async function payAndCall(opts: {
   query: string;
   body: string;
   onStage?: (s: PayStage) => void;
+  /** Each screening result as it arrives. */
+  onScreen?: (s: Screening) => void;
 }): Promise<PaidResponse> {
-  const { item, wallet, address, onStage } = opts;
+  const { item, wallet, address, onStage, onScreen } = opts;
+  const screenings: Screening[] = [];
+  let blocked: Screening | null = null;
+  const record = (s: Screening) => {
+    screenings.push(s);
+    onScreen?.(s);
+    if (s.verdict === "block") blocked = s;
+    return s;
+  };
+  let quote: { payTo: string; amount: string } | null = null;
   // Loaded on demand so the x402 client stays out of every other page's bundle.
   const [{ x402Client }, { registerExactEvmScheme }, { wrapFetchWithPayment }, { decodePaymentResponseHeader, decodePaymentRequiredHeader }] = await Promise.all([
     import("@x402/core/client"),
@@ -49,7 +82,15 @@ export async function payAndCall(opts: {
   registerExactEvmScheme(client, {
     signer: {
       address,
-      signTypedData: (m) => wallet.signTypedData({ account: address, ...m } as Parameters<WalletClient["signTypedData"]>[0]),
+      signTypedData: async (m) => {
+        onStage?.("screen");
+        // the typed message carries bigints, which JSON can't encode
+        const authorization = JSON.parse(JSON.stringify(m, (_k, v) => (typeof v === "bigint" ? v.toString() : v)));
+        const s = record(await screen({ pay_to: quote?.payTo, amount: quote?.amount, authorization }));
+        if (s.verdict === "block") throw new ScreeningBlocked(s);
+        onStage?.("sign");
+        return wallet.signTypedData({ account: address, ...m } as Parameters<WalletClient["signTypedData"]>[0]);
+      },
     },
     networks: [`eip155:${CHAIN.id}`],
   });
@@ -58,7 +99,10 @@ export async function payAndCall(opts: {
   client.onBeforePaymentCreation(async ({ selectedRequirements: req }) => {
     if (req.payTo.toLowerCase() !== item.payTo.toLowerCase()) return { abort: true, reason: "The quote pays a different address than this API’s seller." };
     if (BigInt(req.amount) > item.priceAtomic) return { abort: true, reason: `The gateway quoted more than the listed ${usdc(item.priceAtomic)}.` };
-    onStage?.("sign");
+    onStage?.("screen");
+    const s = record(await screen({ pay_to: req.payTo, asset: req.asset }));
+    if (s.verdict === "block") return { abort: true, reason: `Blocked by Intercepta: ${s.summary}. Nothing was signed.` };
+    quote = { payTo: req.payTo, amount: req.amount };
   });
   client.onAfterPaymentCreation(async () => onStage?.("call"));
 
@@ -73,7 +117,13 @@ export async function payAndCall(opts: {
   onStage?.("quote");
   const started = performance.now();
   // Same origin: the dashboard proxies /x/* to the gateway.
-  const res = await paidFetch(`/x/${encodeURIComponent(item.id)}${qs ? `?${qs}` : ""}`, init);
+  let res: Response;
+  try {
+    res = await paidFetch(`/x/${encodeURIComponent(item.id)}${qs ? `?${qs}` : ""}`, init);
+  } catch (e) {
+    if (blocked) throw new ScreeningBlocked(blocked);
+    throw e;
+  }
   const latencyMs = Math.round(performance.now() - started);
 
   let receipt: Receipt = { paid: false, reason: res.ok ? "The gateway didn’t confirm a payment." : "The API failed, so you weren’t charged." };
@@ -108,8 +158,8 @@ export async function payAndCall(opts: {
         /* show as is */
       }
     }
-    return { status: res.status, latencyMs, contentType, text, blobUrl: null, size: raw.length, receipt };
+    return { status: res.status, latencyMs, contentType, text, blobUrl: null, size: raw.length, receipt, screenings };
   }
   const blob = await res.blob();
-  return { status: res.status, latencyMs, contentType, text: null, blobUrl: URL.createObjectURL(blob), size: blob.size, receipt };
+  return { status: res.status, latencyMs, contentType, text: null, blobUrl: URL.createObjectURL(blob), size: blob.size, receipt, screenings };
 }
