@@ -4,10 +4,10 @@ import { api, type Call, type CallStatus } from "@/lib/api";
 export type FeedRow = Call & { fresh: boolean };
 
 /**
- * Live feed: loads the latest `limit` calls once, then polls
- * GET /api/feed?since=<newest cursor> every 2s and prepends whatever is new.
- * Rows that arrived after the first load carry `fresh: true` so the list can
- * flash them on mount.
+ * Live feed: polls the latest `limit` calls every 2s. Rows that arrived after
+ * the first load carry `fresh: true` so the list can flash them on mount. The
+ * whole page is refetched, not just newer rows, because a row's onchain
+ * verification changes after it first appears (confirming → verified).
  */
 export function useFeed({ endpointId, limit = 20 }: { endpointId?: string; limit?: number } = {}) {
   const qc = useQueryClient();
@@ -22,16 +22,16 @@ export function useFeed({ endpointId, limit = 20 }: { endpointId?: string; limit
         const first = await api.feed({ endpoint_id: endpointId, limit });
         return first.map((r) => ({ ...r, fresh: false }));
       }
-      const since = current[0]?.cursor;
-      const incoming = await api.feed({ endpoint_id: endpointId, since, limit });
-      const known = new Set(current.map((r) => r.id));
-      const added = incoming.filter((r) => !known.has(r.id));
-      if (!added.length) return current;
-
-      // new paid calls move the KPIs and per-endpoint totals
-      qc.invalidateQueries({ queryKey: ["stats"] });
-      qc.invalidateQueries({ queryKey: ["endpoints"] });
-      return [...added.map((r) => ({ ...r, fresh: true })), ...current].sort((a, b) => b.t - a.t).slice(0, limit);
+      const incoming = await api.feed({ endpoint_id: endpointId, limit });
+      const known = new Map(current.map((r) => [r.id, r]));
+      if (incoming.some((r) => !known.has(r.id))) {
+        // new paid calls move the KPIs, per-endpoint totals and the reconciliation
+        qc.invalidateQueries({ queryKey: ["stats"] });
+        qc.invalidateQueries({ queryKey: ["endpoints"] });
+        qc.invalidateQueries({ queryKey: ["reconcile"] });
+        qc.invalidateQueries({ queryKey: ["actions"] });
+      }
+      return incoming.map((r) => ({ ...r, fresh: known.get(r.id)?.fresh ?? true }));
     },
   });
 
@@ -41,12 +41,18 @@ export function useFeed({ endpointId, limit = 20 }: { endpointId?: string; limit
 const PAGE = 50;
 
 /** Full history for the Payments page, paged backwards with before=<cursor>. */
-export function usePayments(filters: { endpointId?: string; status?: CallStatus }) {
+export function usePayments(filters: { endpointId?: string; status?: CallStatus; unverified?: boolean }) {
   return useInfiniteQuery({
-    queryKey: ["payments", filters.endpointId ?? "all", filters.status ?? "all"],
+    queryKey: ["payments", filters.endpointId ?? "all", filters.status ?? "all", filters.unverified ? "unverified" : "any"],
     initialPageParam: undefined as string | number | undefined,
     queryFn: ({ pageParam }) =>
-      api.feed({ before: pageParam, endpoint_id: filters.endpointId, status: filters.status, limit: PAGE }),
+      api.feed({
+        before: pageParam,
+        endpoint_id: filters.endpointId,
+        status: filters.status,
+        verification: filters.unverified ? "unverified" : undefined,
+        limit: PAGE,
+      }),
     getNextPageParam: (last) => (last.length < PAGE ? undefined : last[last.length - 1].cursor),
   });
 }

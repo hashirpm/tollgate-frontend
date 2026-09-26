@@ -6,12 +6,14 @@ import Link from "next/link";
 import { FeedList } from "@/components/FeedList";
 import { IncomeChart } from "@/components/IncomeChart";
 import { KpiTile } from "@/components/KpiTile";
+import { ActionCenter, OnchainCard } from "@/components/Onchain";
 import { EnsStorefront } from "@/components/Ens";
 import { ProtectionCard } from "@/components/Screening";
 import { EndpointStatusBadge } from "@/components/StatusBadge";
 import { Avatar, EmptyState, ErrorState, PageHeader, Skeleton } from "@/components/ui";
 import { useEndpoints } from "@/hooks/useEndpoints";
 import { useFeed } from "@/hooks/useFeed";
+import { useReconcile } from "@/hooks/useOnchain";
 import { type Range, useStats } from "@/hooks/useStats";
 import { useUsdcBalance } from "@/hooks/useUsdcBalance";
 import { useSession } from "@/lib/auth";
@@ -24,6 +26,8 @@ export function OverviewPage() {
   const balance = useUsdcBalance(address);
   const feed = useFeed({ limit: 20 });
   const endpoints = useEndpoints();
+  const reconcile = useReconcile("24h");
+  const verifiedPct = reconcile.data?.status === "ok" ? reconcile.data.verifiedPct : null;
 
   const s = stats.data;
   const period = range === "24h" ? "last 24h" : "last 30 days";
@@ -43,6 +47,10 @@ export function OverviewPage() {
         </div>
       )}
 
+      <section className="mb-4">
+        <ActionCenter />
+      </section>
+
       <div className="mb-4">
         <EnsStorefront listings={endpoints.data ?? []} />
       </div>
@@ -54,7 +62,7 @@ export function OverviewPage() {
             label={`Earned · ${range}`}
             icon={<CircleDollarSign className="size-4" />}
             value={s ? usdc(s.incomeAtomic) : "—"}
-            foot="USDC, settled"
+            foot={verifiedPct == null ? "USDC, settled" : `USDC · ${verifiedPct}% verified onchain (24h)`}
             loading={stats.isPending}
             trend={s?.series.map((p) => atomicToUsd(p.incomeAtomic))}
           />
@@ -77,7 +85,8 @@ export function OverviewPage() {
         />
       </section>
 
-      <section className="mt-4">
+      <section className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <OnchainCard />
         <ProtectionCard />
       </section>
 

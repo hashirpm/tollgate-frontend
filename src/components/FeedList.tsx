@@ -6,6 +6,7 @@ import type { FeedRow } from "@/hooks/useFeed";
 import type { Verdict } from "@/lib/api";
 import { useNow } from "@/hooks/useNow";
 import { ago, basescanAddress, basescanTx, clock, shortAddr, usdc } from "@/lib/format";
+import { VerificationBadge } from "./Onchain";
 import { CallStatusBadge, PayerRisk } from "./StatusBadge";
 import { Avatar, EmptyState, ErrorState, LiveDot, Skeleton } from "./ui";
 
@@ -82,7 +83,12 @@ export function FeedList({
                 )}
                 <div className="min-w-0">{showEndpoint && <PayerCell payer={r.payer} verdict={r.payerVerdict} />}</div>
                 <div className={`num text-right ${r.status === "settled" ? "text-ink" : "text-ink-3 line-through"}`}>{usdc(r.amountAtomic)}</div>
-                <CallStatusBadge status={r.status} />
+                <div>
+                  <CallStatusBadge status={r.status} />
+                  <div>
+                    <VerificationBadge verification={r.verification} block={r.onchainBlock} />
+                  </div>
+                </div>
                 <div className="text-right">
                   {r.txHash ? (
                     <a href={basescanTx(r.txHash)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-ink-2 hover:text-ink hover:underline">
