@@ -19,7 +19,7 @@
   ],
   // Where /api, /x and /catalog are proxied (read at runtime).
   "vars": {
-    "GATEWAY_URL": "http://localhost:8787"
+    "GATEWAY_URL": "https://x402-gateway.tollgate-tokyo.workers.dev"
   },
   // Prefer a service binding in production: Worker → Worker, no public hop.
   // When set, it wins over GATEWAY_URL.
