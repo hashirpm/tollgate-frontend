@@ -33,7 +33,7 @@ export function ConnectPage() {
   // only same-site paths, never "//evil.com"
   const from = param && param.startsWith("/") && !param.startsWith("//") ? param : "/dashboard";
   const signedIn = session.status === "signed-in";
-  // bounced here from a protected page → go straight to the sign-in dialog
+  // bounced here from a protected page → go straight to the login dialog
   const [open, setOpen] = useState(!!param);
 
   useEffect(() => {
@@ -41,8 +41,8 @@ export function ConnectPage() {
   }, [signedIn, from, router]);
 
   const busy = session.status === "reconnecting" || session.status === "checking";
-  const cta =
-    session.status === "signed-out" ? "Sign in to your dashboard" : session.status === "wrong-chain" ? "Switch network" : "Connect wallet";
+  // returning users with a wallet already connected just need to log in
+  const cta = session.status === "signed-out" || session.status === "wrong-chain" ? "Log in to your dashboard" : "Log in";
 
   return (
     <div className={`relative min-h-screen overflow-hidden ${s.motion}`}>
@@ -62,7 +62,7 @@ export function ConnectPage() {
             </a>
             <button onClick={() => setOpen(true)} className="btn btn-ghost h-10 bg-surface/70 backdrop-blur" disabled={busy}>
               {busy ? <Spinner /> : null}
-              {session.status === "signed-out" ? "Sign in" : "Connect"}
+              Log in
             </button>
           </nav>
         </header>
@@ -191,7 +191,11 @@ function SignInDialog({ open, onClose, session }: { open: boolean; onClose: () =
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
-    if (open && !d.open) d.showModal();
+    if (open && !d.open) {
+      d.showModal();
+      // showModal() focuses the first control (the close ×) and rings it; start on the panel instead
+      d.querySelector<HTMLElement>("[data-dialog-panel]")?.focus();
+    }
     if (!open && d.open) d.close();
   }, [open]);
 
@@ -205,7 +209,7 @@ function SignInDialog({ open, onClose, session }: { open: boolean; onClose: () =
       onClick={(e) => e.target === e.currentTarget && onClose()} // backdrop click
       className="m-auto w-[min(94vw,440px)] overflow-visible rounded-[28px] border border-line bg-surface p-0 text-ink shadow-2xl backdrop:bg-ink/35 backdrop:backdrop-blur-sm"
     >
-      <div className="relative overflow-hidden rounded-[28px] p-6 sm:p-8">
+      <div data-dialog-panel tabIndex={-1} className="relative overflow-hidden rounded-[28px] p-6 outline-none sm:p-8">
         <div className="pointer-events-none absolute -top-24 -right-24 size-64 rounded-full bg-lime/40 blur-3xl" />
         <button onClick={onClose} className="absolute top-4 right-4 z-10 grid size-9 place-items-center rounded-full text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label="Close">
           <X className="size-4" />

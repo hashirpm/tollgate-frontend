@@ -35,7 +35,7 @@ export function useSession() {
 
   const signIn = useMutation({
     mutationFn: async () => {
-      if (!address) throw new Error("Connect a wallet first");
+      if (!address) throw new Error("No account connected");
       const nonce = await api.nonce();
       const message = createSiweMessage({
         address,
@@ -46,7 +46,7 @@ export function useSession() {
         uri: location.origin,
         nonce,
         version: "1",
-        statement: `Sign in to ${APP_NAME}`,
+        statement: `Log in to ${APP_NAME}. This is free and does not send a transaction.`,
         issuedAt: new Date(),
       });
       const signature = await signMessageAsync({ message });

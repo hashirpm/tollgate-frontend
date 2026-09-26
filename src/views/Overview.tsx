@@ -63,7 +63,7 @@ export function OverviewPage() {
         />
         <KpiTile label="Unique payers" icon={<Users className="size-4" />} value={s?.uniquePayers.toLocaleString() ?? "—"} foot={period} loading={stats.isPending} />
         <KpiTile
-          label="Wallet balance"
+          label="Balance"
           icon={<Wallet className="size-4" />}
           value={balance.data === undefined ? "—" : usdc(balance.data, 2)}
           foot="USDC · Base Sepolia"

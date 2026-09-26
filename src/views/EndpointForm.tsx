@@ -84,7 +84,8 @@ function toInput(f: FormState): EndpointInput {
     auth_name: f.authType === "none" ? null : f.authName.trim(),
     static_headers: Object.fromEntries(f.headers.filter((h) => h.key.trim()).map((h) => [h.key.trim(), h.value])),
     // ×1e6 happens here and only here, exactly (string math, no floats)
-    price_atomic: usdToAtomic(f.price)!.toString(),
+    // safe as a JS number: exact up to 2^53 atomic units (~9 billion USDC)
+    price_atomic: Number(usdToAtomic(f.price)!),
     example_query: f.exampleQuery.trim().replace(/^\?/, "") || null,
     example_body: hasBody && f.exampleBody.trim() ? f.exampleBody.trim() : null,
     body_overrides: hasBody && f.bodyOverrides.trim() ? f.bodyOverrides.trim() : null,

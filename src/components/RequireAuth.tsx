@@ -5,7 +5,7 @@ import { type ReactNode, useEffect } from "react";
 import { useSession } from "@/lib/auth";
 import { Spinner } from "./ui";
 
-/** Anything behind the dashboard needs a signed-in wallet on Base Sepolia. */
+/** Anything behind the dashboard needs a logged-in account (a wallet signed in on Base Sepolia). */
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { status } = useSession();
   const pathname = usePathname();

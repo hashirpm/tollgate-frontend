@@ -58,14 +58,39 @@ async function request<T>(method: string, path: string, opts: { query?: Query; b
     // Expired or revoked: drop the token; the route guard sends us to sign in.
     clearToken(address);
   }
-  if (!res.ok) {
-    const msg =
-      (data && typeof data === "object" && ("error" in data || "message" in data)
-        ? String((data as Record<string, unknown>).error ?? (data as Record<string, unknown>).message)
-        : undefined) ?? `${method} ${path} failed (${res.status})`;
-    throw new ApiError(res.status, msg, data);
-  }
+  if (!res.ok) throw new ApiError(res.status, errorMessage(data) ?? `${method} ${path} failed (${res.status})`, data);
   return data as T;
+}
+
+/**
+ * Turn an error body into one readable line, keeping whatever detail the
+ * Worker gives: "invalid_request: price_atomic: Expected number, received string".
+ * Understands a plain { error, message } plus zod-style issue lists and
+ * field → message maps.
+ */
+function errorMessage(data: unknown): string | undefined {
+  if (!data || typeof data !== "object") return typeof data === "string" && data ? data.slice(0, 300) : undefined;
+  const d = data as Record<string, unknown>;
+  const head = [d.error, d.message].filter((v) => typeof v === "string" && v).join(": ") || undefined;
+
+  const details: string[] = [];
+  const issues = d.issues ?? d.errors ?? d.details ?? (d.error && typeof d.error === "object" ? d.error : undefined);
+  if (Array.isArray(issues)) {
+    for (const i of issues.slice(0, 4)) {
+      if (typeof i === "string") details.push(i);
+      else if (i && typeof i === "object") {
+        const r = i as Record<string, unknown>;
+        const where = Array.isArray(r.path) ? r.path.join(".") : r.path ?? r.field ?? r.param;
+        details.push([where, r.message ?? r.msg].filter(Boolean).join(": "));
+      }
+    }
+  } else if (issues && typeof issues === "object") {
+    // { fieldErrors: { price_atomic: ["Expected number"] } } or { price_atomic: "..." }
+    const map = ((issues as Record<string, unknown>).fieldErrors ?? issues) as Record<string, unknown>;
+    for (const [k, v] of Object.entries(map).slice(0, 4)) details.push(`${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`);
+  }
+  const tail = details.filter(Boolean).join("; ");
+  return [head, tail].filter(Boolean).join(" — ") || undefined;
 }
 
 // ---------- shapes ----------
@@ -107,7 +132,7 @@ export interface EndpointInput {
   auth_name: string | null;
   auth_value?: string;
   static_headers: Record<string, string>;
-  price_atomic: string; // integer string, 6 decimals
+  price_atomic: number; // integer atomic units, 6 decimals (the Worker's /catalog returns it as a number)
   example_query: string | null;
   example_body: string | null;
   body_overrides: string | null;
