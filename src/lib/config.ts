@@ -10,6 +10,9 @@ export const USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as cons
 export const USDC_DECIMALS = 6;
 
 export const BASESCAN = "https://sepolia.basescan.org";
+
+/** Real-time onchain screening partner: payers, payouts and pay-page signatures. */
+export const INTERCEPTA_URL = "https://intercepta.io";
 export const USDC_FAUCET = "https://faucet.circle.com/";
 
 /**

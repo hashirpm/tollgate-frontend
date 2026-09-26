@@ -38,7 +38,7 @@ export function PayPage() {
           <div className="card">
             <EmptyState
               icon={<Zap className="size-5" />}
-              title="This API isn’t available"
+              title="These credits aren’t for sale"
               action={
                 <Link href="/" className="btn btn-ghost">
                   Go to Tollgate

@@ -53,16 +53,16 @@ export function FeedList({
           ))}
         </div>
       ) : rows.length === 0 ? (
-        <EmptyState icon={<Radio className="size-5" />} title="Waiting for the first paid call">
-          Calls appear here within a couple of seconds of a buyer paying.
+        <EmptyState icon={<Radio className="size-5" />} title="Waiting for the first sale">
+          Sales appear here within a couple of seconds of an agent paying.
         </EmptyState>
       ) : (
         <div className="overflow-x-auto">
           <div className="min-w-[760px]">
             <div className={`thead-row ${COLS}`}>
               <div>Time</div>
-              <div>{showEndpoint ? "Endpoint" : "Payer"}</div>
-              <div>{showEndpoint ? "Payer" : ""}</div>
+              <div>{showEndpoint ? "Listing" : "Buyer"}</div>
+              <div>{showEndpoint ? "Buyer" : ""}</div>
               <div className="text-right">Amount</div>
               <div>Status</div>
               <div className="text-right">Tx</div>

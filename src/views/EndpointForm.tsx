@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CircleCheck, CircleX, FlaskConical, Info, RotateCcw, Save, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, CircleCheck, CircleX, Clock, ExternalLink, FlaskConical, Info, Plus, RotateCcw, Save, ShieldCheck } from "lucide-react";
 import { type FormEvent, type ReactNode, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -25,6 +25,7 @@ import {
   type TestResult,
 } from "@/lib/api";
 import { atomicToInput, usdToAtomic } from "@/lib/format";
+import { type CreditTemplate, TEMPLATE_CATEGORIES, TEMPLATES, templateFor, withKeyPrefix } from "@/lib/templates";
 
 const BODY_METHODS: HttpMethod[] = ["POST", "PUT", "PATCH"];
 const MAX_PRICE_ATOMIC = 100_000_000n; // $100, the Worker's cap
@@ -67,24 +68,47 @@ function initialState(ep?: Endpoint): FormState {
   };
 }
 
+/** Prefill everything but the key and the screening choice. */
+function applyTemplate(t: CreditTemplate, f: FormState): FormState {
+  const hasBody = BODY_METHODS.includes(t.method);
+  return {
+    ...f,
+    name: t.name,
+    description: t.description,
+    method: t.method,
+    url: t.url,
+    authType: t.auth.type,
+    authName: t.auth.name,
+    headers: Object.entries(t.headers ?? {}).map(([key, value]) => ({ key, value })),
+    price: t.price,
+    exampleQuery: t.exampleQuery ?? "",
+    exampleBody: hasBody && t.exampleBody !== undefined ? JSON.stringify(t.exampleBody, null, 2) : "",
+    bodyOverrides: t.bodyOverrides ? JSON.stringify(t.bodyOverrides, null, 2) : "",
+    maxBodyBytes: String(t.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES),
+  };
+}
+
 type Errors = Partial<Record<keyof FormState, string>>;
+
+// Fields that sit under "Advanced" when a template is in use.
+const ADVANCED_FIELDS: (keyof FormState)[] = ["method", "url", "authName", "headers", "exampleQuery", "exampleBody", "bodyOverrides", "maxBodyBytes"];
 
 function validate(f: FormState, hasStoredSecret: boolean): Errors {
   const e: Errors = {};
   const hasBody = BODY_METHODS.includes(f.method);
   if (!f.name.trim()) e.name = "Give it a name buyers will recognize.";
   else if (f.name.trim().length > 80) e.name = "Keep it under 80 characters.";
-  if (!f.description.trim()) e.description = "Say what it returns. Buyers and Claude read this to decide whether to call it.";
+  if (!f.description.trim()) e.description = "Say what a call returns. Buyers and Claude read this to decide whether to buy it.";
   else if (f.description.trim().length > 2000) e.description = "Keep it under 2,000 characters.";
   try {
     const u = new URL(f.url.trim());
-    if (u.protocol !== "https:") e.url = "Upstream must be https://";
+    if (u.protocol !== "https:") e.url = "The provider API must be https://";
   } catch {
     e.url = "Enter a full URL, like https://api.example.com/v1/search";
   }
   if (f.authType !== "none") {
     if (!f.authName.trim()) e.authName = f.authType === "header" ? "Header name, e.g. Authorization" : "Query parameter, e.g. api_key";
-    if (!f.authValue.trim() && !hasStoredSecret) e.authValue = "The secret the gateway sends to your upstream.";
+    if (!f.authValue.trim() && !hasStoredSecret) e.authValue = "The API key your credits are on.";
   }
   const atomic = usdToAtomic(f.price);
   if (atomic === null) e.price = "A dollar amount with up to 6 decimals, e.g. 0.01";
@@ -95,7 +119,7 @@ function validate(f: FormState, hasStoredSecret: boolean): Errors {
   if (f.exampleQuery.trim().length > 2000) e.exampleQuery = "Keep it under 2,000 characters.";
   const overrides = hasBody && f.bodyOverrides.trim();
   if (hasBody) {
-    if (!f.exampleBody.trim()) e.exampleBody = `${f.method} endpoints need an example body. The activation test sends it to your upstream.`;
+    if (!f.exampleBody.trim()) e.exampleBody = `${f.method} requests need an example body. The test call sends it to the provider.`;
     else if (jsonError(f.exampleBody)) e.exampleBody = "Fix the JSON first.";
     else if (overrides && jsonError(f.exampleBody, { object: true })) e.exampleBody = "Must be a JSON object, because body overrides are merged into it.";
   }
@@ -219,6 +243,9 @@ function EndpointForm({ existing }: { existing?: Endpoint }) {
   const [serverErrors, setServerErrors] = useState<Errors>({});
   const [step, setStep] = useState<"form" | "test">("form");
   const [retestReason, setRetestReason] = useState(false);
+  // undefined: still choosing a provider (new listings only); null: custom API
+  const [template, setTemplate] = useState<CreditTemplate | null | undefined>(() => (existing ? (templateFor(existing.url) ?? null) : undefined));
+  const [advanced, setAdvanced] = useState(false);
 
   const hasStoredSecret = !!saved?.hasAuthValue;
   const errors = validate(f, hasStoredSecret);
@@ -256,9 +283,14 @@ function EndpointForm({ existing }: { existing?: Endpoint }) {
     else router.push(`/endpoints/${endpoint.id}`);
   };
 
+  const revealAdvanced = (errs: Errors) => {
+    if (template && ADVANCED_FIELDS.some((k) => errs[k])) setAdvanced(true);
+  };
+
   const onSaveError = (err: unknown) => {
     const { fields } = splitIssues(err);
     setServerErrors(fields);
+    revealAdvanced(fields);
     if (Object.keys(fields).length) scrollToInvalid();
   };
 
@@ -266,13 +298,18 @@ function EndpointForm({ existing }: { existing?: Endpoint }) {
     e.preventDefault();
     setTouched(true);
     setServerErrors({});
-    if (Object.keys(errors).length) return scrollToInvalid();
+    if (Object.keys(errors).length) {
+      revealAdvanced(errors);
+      return scrollToInvalid();
+    }
+    // templates ask for the bare key; the provider's scheme ("Bearer ", "Key ") is added here
+    const out = { ...f, authValue: withKeyPrefix(template, f.authValue) };
 
     if (!saved) {
-      save.mutate({ input: toInput(f) }, { onSuccess: onSaved, onError: onSaveError });
+      save.mutate({ input: toInput(out) }, { onSuccess: onSaved, onError: onSaveError });
       return;
     }
-    const patch = toPatch(saved, f);
+    const patch = toPatch(saved, out);
     if (!Object.keys(patch).length) {
       // nothing changed: a pending endpoint still needs its test, anything else is done
       if (saved.status === "pending") runTest(saved.id, false);
@@ -301,153 +338,267 @@ function EndpointForm({ existing }: { existing?: Endpoint }) {
     );
   }
 
+  if (template === undefined) {
+    return (
+      <TemplatePicker
+        onPick={(t) => {
+          setTemplate(t);
+          if (t) setF((s) => applyTemplate(t, s));
+        }}
+      />
+    );
+  }
+
+  const nameField = (
+    <Field label="Name" htmlFor="name" error={show("name")}>
+      <input id="name" className="input" value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="Spare ElevenLabs credits" aria-invalid={!!show("name")} />
+    </Field>
+  );
+  const methodField = (
+    <Field label="Method" htmlFor="method" error={show("method")}>
+      <select id="method" className="input" value={f.method} onChange={(e) => set("method", e.target.value as HttpMethod)}>
+        {HTTP_METHODS.map((m) => (
+          <option key={m}>{m}</option>
+        ))}
+      </select>
+    </Field>
+  );
+  const descriptionField = (
+    <Field
+      label="Description"
+      htmlFor="desc"
+      error={show("description")}
+      hint={<ClaudeHint>Buyers and Claude read this to decide whether to buy a call. Say what it returns and what it’s good for.</ClaudeHint>}
+    >
+      <textarea
+        id="desc"
+        aria-invalid={!!show("description")}
+        className="input h-auto min-h-20 resize-y py-2.5"
+        rows={3}
+        value={f.description}
+        onChange={(e) => set("description", e.target.value)}
+        placeholder="Text to speech with ElevenLabs. Send {&quot;text&quot;: &quot;...&quot;} and get back MP3 audio."
+      />
+    </Field>
+  );
+  const urlField = (
+    <Field label="Provider API URL" htmlFor="url" error={show("url")} hint="Must be https. The server also checks it isn't a private address.">
+      <input
+        id="url"
+        className="input font-mono text-[13px]"
+        value={f.url}
+        inputMode="url"
+        spellCheck={false}
+        onChange={(e) => set("url", e.target.value)}
+        placeholder="https://api.elevenlabs.io/v1/text-to-speech/…"
+        aria-invalid={!!show("url")}
+      />
+    </Field>
+  );
+  const keyField = (label: string, placeholder: string, hint?: ReactNode) => (
+    <Field
+      label={label}
+      htmlFor="authValue"
+      error={show("authValue")}
+      hint={
+        <>
+          {hint}
+          {hasStoredSecret ? "A key is saved. Paste a new one to replace it." : "Write-only. Kept encrypted on the server and never shown again."}
+        </>
+      }
+    >
+      <SecretField id="authValue" invalid={!!show("authValue")} hasStored={hasStoredSecret} value={f.authValue} onChange={(v) => set("authValue", v)} placeholder={placeholder} />
+    </Field>
+  );
+  // with a template the key is asked for up top, so this only covers where it goes
+  const authSection = (withValue: boolean) => (
+    <Section title={withValue ? "API key" : "How the key is sent"} sub="The key your credits are on. The gateway attaches it to each call; buyers never see it.">
+      <div className="seg w-fit">
+        {(["none", "header", "query"] as AuthType[]).map((t) => (
+          <button type="button" key={t} data-active={f.authType === t} className="seg-btn px-4 capitalize" onClick={() => set("authType", t)}>
+            {t === "none" ? "None" : t === "header" ? "Header" : "Query param"}
+          </button>
+        ))}
+      </div>
+      {f.authType !== "none" && (
+        <div className={withValue ? "grid gap-4 sm:grid-cols-[1fr_1.4fr]" : "max-w-xs"}>
+          <Field label={f.authType === "header" ? "Header name" : "Parameter name"} htmlFor="authName" error={show("authName")}>
+            <input
+              id="authName"
+              className="input font-mono text-[13px]"
+              value={f.authName}
+              onChange={(e) => set("authName", e.target.value)}
+              placeholder={f.authType === "header" ? "Authorization" : "api_key"}
+              aria-invalid={!!show("authName")}
+            />
+          </Field>
+          {withValue && keyField("Value", f.authType === "header" ? "Bearer sk-…" : "your-api-key")}
+        </div>
+      )}
+      {!withValue && template?.auth.prefix && (
+        <p className="text-xs text-ink-3">
+          Sent as <span className="font-mono text-ink-2">{template.auth.prefix.trim()} &lt;your key&gt;</span>. The prefix is added for you.
+        </p>
+      )}
+    </Section>
+  );
+  const technical = (
+    <>
+      <Section title="Static headers" sub="Sent on every call to the provider, e.g. anthropic-version or content-type.">
+        <KeyValueRows rows={f.headers} onChange={(r) => set("headers", r)} keyPlaceholder="Prefer" valuePlaceholder="wait" />
+        {show("headers") && <div className="text-xs text-bad-text">{show("headers")}</div>}
+      </Section>
+
+      <Section title="Example request" sub={<ClaudeHint>Claude copies this when it calls you, so make it a real, working request.</ClaudeHint>}>
+        <Field label="Query string" htmlFor="q" error={show("exampleQuery")} hint="Without the leading ?">
+          <input id="q" aria-invalid={!!show("exampleQuery")} className="input font-mono text-[13px]" value={f.exampleQuery} onChange={(e) => set("exampleQuery", e.target.value)} placeholder="model=nova-3" spellCheck={false} />
+        </Field>
+        {hasBody ? (
+          <Field label="JSON body" htmlFor="exampleBody" error={show("exampleBody")}>
+            <JsonField
+              id="exampleBody"
+              value={f.exampleBody}
+              onChange={(v) => set("exampleBody", v)}
+              placeholder={'{\n  "text": "Hello"\n}'}
+              required
+              invalid={!!show("exampleBody")}
+            />
+          </Field>
+        ) : (
+          <p className="text-xs text-ink-3">{f.method} requests have no body. Switch the method to POST/PUT/PATCH to add one.</p>
+        )}
+      </Section>
+
+      <Section title="Spend guards" sub="Stop any single call from burning through your credits. Enforced before anything reaches the provider.">
+        <Field
+          label="Body overrides"
+          htmlFor="bodyOverrides"
+          error={show("bodyOverrides")}
+          hint={hasBody ? "JSON object merged over every buyer's body, e.g. {\"num_images\": 1} to cap what one call can spend." : "Only applies to requests with a body."}
+        >
+          <JsonField id="bodyOverrides" value={f.bodyOverrides} onChange={(v) => set("bodyOverrides", v)} placeholder='{"num_images": 1}' rows={3} object invalid={!!show("bodyOverrides")} />
+        </Field>
+        <Field label="Max body size" htmlFor="maxb" error={show("maxBodyBytes")} hint="Bytes, up to 1,048,576. Larger requests are rejected before payment.">
+          <input id="maxb" aria-invalid={!!show("maxBodyBytes")} className="input num w-48 font-mono" inputMode="numeric" value={f.maxBodyBytes} onChange={(e) => set("maxBodyBytes", e.target.value)} placeholder="65536" />
+        </Field>
+      </Section>
+    </>
+  );
+
   return (
     <form onSubmit={submit} noValidate>
       <PageHeader
-        title={existing ? `Edit ${existing.name}` : "Add endpoint"}
-        sub={existing ? "Name, description, price and examples apply right away. Changing where or how we call your API needs a new test." : "Point Tollgate at an API, set a price, then test it to go live."}
+        title={existing ? `Edit ${existing.name}` : template ? `List ${template.provider} credits` : "List credits"}
+        sub={
+          existing
+            ? "Name, description, price and examples apply right away. Changing the provider API, key or spend guards needs a new test."
+            : template
+              ? "Paste your key and set a price. Everything else is filled in for you."
+              : "Connect the API your leftover credits are on, set a price per call, then test it to go live."
+        }
       >
+        {!existing && (
+          <button type="button" className="btn btn-ghost" onClick={() => setTemplate(undefined)}>
+            <ArrowLeft className="size-4" /> Providers
+          </button>
+        )}
         <Link href={existing ? `/endpoints/${existing.id}` : "/endpoints"} className="btn btn-ghost">
-          <ArrowLeft className="size-4" /> Cancel
+          Cancel
         </Link>
       </PageHeader>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_320px]">
         <div className="space-y-4">
-          <Section title="Basics">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Name" htmlFor="name" error={show("name")}>
-                <input id="name" className="input" value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="Weather forecast" aria-invalid={!!show("name")} />
-              </Field>
-              <Field label="Method" htmlFor="method" error={show("method")}>
-                <select id="method" className="input" value={f.method} onChange={(e) => set("method", e.target.value as HttpMethod)}>
-                  {HTTP_METHODS.map((m) => (
-                    <option key={m}>{m}</option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-            <Field
-              label="Description"
-              htmlFor="desc"
-              error={show("description")}
-              hint={<ClaudeHint>Buyers and Claude read this to decide when to call your API. Say what it returns and when it’s useful.</ClaudeHint>}
-            >
-              <textarea
-                id="desc"
-                aria-invalid={!!show("description")}
-                className="input h-auto min-h-20 resize-y py-2.5"
-                rows={3}
-                value={f.description}
-                onChange={(e) => set("description", e.target.value)}
-                placeholder="7-day forecast for any city: temperature, precipitation and wind, hourly."
-              />
-            </Field>
-            <Field label="Upstream URL" htmlFor="url" error={show("url")} hint="Must be https. The server also checks it isn't a private address.">
-              <input
-                id="url"
-                className="input font-mono text-[13px]"
-                value={f.url}
-                inputMode="url"
-                spellCheck={false}
-                onChange={(e) => set("url", e.target.value)}
-                placeholder="https://api.example.com/v1/forecast"
-                aria-invalid={!!show("url")}
-              />
-            </Field>
-          </Section>
+          {template ? (
+            <>
+              <section className="card card-pad">
+                <div className="flex items-center gap-4">
+                  <ProviderTile t={template} size="lg" />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium">
+                      {template.provider} · {template.product}
+                    </div>
+                    <div className="text-sm text-ink-2">{template.blurb}</div>
+                  </div>
+                </div>
+                {template.async && (
+                  <p className="mt-4 flex items-start gap-2 rounded-2xl bg-warn/10 p-3 text-xs text-warn-text">
+                    <Clock className="mt-px size-3.5 shrink-0" /> Asynchronous: {template.async}
+                  </p>
+                )}
+                <div className="mt-5">
+                  {keyField(
+                    template.keyLabel ?? `${template.provider} API key`,
+                    template.keyPlaceholder,
+                    <>
+                      <a href={template.keyUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 font-medium text-accent-text underline-offset-2 hover:underline">
+                        Get your key <ExternalLink className="size-3" />
+                      </a>
+                      {" · "}
+                    </>,
+                  )}
+                </div>
+              </section>
 
-          <Section title="Auth" sub="How the gateway authenticates to your upstream. Buyers never see this.">
-            <div className="seg w-fit">
-              {(["none", "header", "query"] as AuthType[]).map((t) => (
-                <button type="button" key={t} data-active={f.authType === t} className="seg-btn px-4 capitalize" onClick={() => set("authType", t)}>
-                  {t === "none" ? "None" : t === "header" ? "Header" : "Query param"}
-                </button>
-              ))}
-            </div>
-            {f.authType !== "none" && (
-              <div className="grid gap-4 sm:grid-cols-[1fr_1.4fr]">
-                <Field label={f.authType === "header" ? "Header name" : "Parameter name"} htmlFor="authName" error={show("authName")}>
-                  <input
-                    id="authName"
-                    className="input font-mono text-[13px]"
-                    value={f.authName}
-                    onChange={(e) => set("authName", e.target.value)}
-                    placeholder={f.authType === "header" ? "Authorization" : "api_key"}
-                    aria-invalid={!!show("authName")}
-                  />
-                </Field>
-                <Field
-                  label="Value"
-                  htmlFor="authValue"
-                  error={show("authValue")}
-                  hint={hasStoredSecret ? "A secret is saved. Type a new one to replace it." : "Write-only. Kept encrypted on the server and never shown again."}
-                >
-                  <SecretField
-                    id="authValue"
-                    invalid={!!show("authValue")}
-                    hasStored={hasStoredSecret}
-                    value={f.authValue}
-                    onChange={(v) => set("authValue", v)}
-                    placeholder={f.authType === "header" ? "Bearer sk-…" : "your-api-key"}
-                  />
-                </Field>
-              </div>
-            )}
-          </Section>
+              <Section title="Listing" sub="What buyers and Claude see. Pre-filled; edit if you like.">
+                {nameField}
+                {descriptionField}
+              </Section>
 
-          <Section title="Static headers" sub="Sent on every upstream call, e.g. anthropic-version or content-type.">
-            <KeyValueRows rows={f.headers} onChange={(r) => set("headers", r)} keyPlaceholder="anthropic-version" valuePlaceholder="2023-06-01" />
-            {show("headers") && <div className="text-xs text-bad-text">{show("headers")}</div>}
-          </Section>
-
-          <Section title="Example request" sub={<ClaudeHint>Claude copies this when it calls you, so make it a real, working request.</ClaudeHint>}>
-            <Field label="Query string" htmlFor="q" error={show("exampleQuery")} hint="Without the leading ?">
-              <input id="q" aria-invalid={!!show("exampleQuery")} className="input font-mono text-[13px]" value={f.exampleQuery} onChange={(e) => set("exampleQuery", e.target.value)} placeholder="city=Lisbon&days=3" spellCheck={false} />
-            </Field>
-            {hasBody ? (
-              <Field label="JSON body" htmlFor="exampleBody" error={show("exampleBody")}>
-                <JsonField
-                  id="exampleBody"
-                  value={f.exampleBody}
-                  onChange={(v) => set("exampleBody", v)}
-                  placeholder={'{\n  "city": "Lisbon"\n}'}
-                  required
-                  invalid={!!show("exampleBody")}
-                />
-              </Field>
-            ) : (
-              <p className="text-xs text-ink-3">{f.method} requests have no body. Switch the method to POST/PUT/PATCH to add one.</p>
-            )}
-          </Section>
-
-          <Section title="Guards" sub="Limits the gateway enforces before anything reaches your upstream.">
-            <Field
-              label="Body overrides"
-              htmlFor="bodyOverrides"
-              error={show("bodyOverrides")}
-              hint={hasBody ? "JSON object merged over every buyer's body, e.g. to cap cost." : "Only applies to requests with a body."}
-            >
-              <JsonField
-                id="bodyOverrides"
-                value={f.bodyOverrides}
-                onChange={(v) => set("bodyOverrides", v)}
-                placeholder='{"max_tokens": 500}'
-                rows={3}
-                object
-                invalid={!!show("bodyOverrides")}
-              />
-            </Field>
-            <Field label="Max body size" htmlFor="maxb" error={show("maxBodyBytes")} hint="Bytes, up to 1,048,576. Larger requests are rejected before payment.">
-              <input id="maxb" aria-invalid={!!show("maxBodyBytes")} className="input num w-48 font-mono" inputMode="numeric" value={f.maxBodyBytes} onChange={(e) => set("maxBodyBytes", e.target.value)} placeholder="65536" />
-            </Field>
-          </Section>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between rounded-2xl border border-line bg-surface px-5 py-4 text-left text-sm hover:bg-surface-2"
+                onClick={() => setAdvanced((a) => !a)}
+                aria-expanded={advanced}
+              >
+                <span>
+                  <span className="font-medium">Advanced</span>
+                  <span className="ml-2 text-ink-3">Provider URL, headers, example request and spend guards</span>
+                </span>
+                <ChevronDown className={`size-4 text-ink-3 transition-transform ${advanced ? "rotate-180" : ""}`} />
+              </button>
+              {advanced && (
+                <>
+                  <Section title="Provider API">
+                    <div className="grid gap-4 sm:grid-cols-[160px_1fr]">
+                      {methodField}
+                      {urlField}
+                    </div>
+                  </Section>
+                  {authSection(false)}
+                  {technical}
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <Section title="Basics">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {nameField}
+                  {methodField}
+                </div>
+                {descriptionField}
+                {urlField}
+              </Section>
+              {authSection(true)}
+              {technical}
+            </>
+          )}
         </div>
 
         {/* sticky summary / submit */}
         <aside className="xl:sticky xl:top-6 xl:self-start">
           <div className="card card-pad space-y-5">
-            <Field label="Price per request" htmlFor="price" error={show("price")} hint="In USD, paid in USDC. Converted to atomic units (×10⁶) on save.">
+            <Field
+              label="Price per request"
+              htmlFor="price"
+              error={show("price")}
+              hint={
+                template
+                  ? `What a buyer pays per call, in USDC. Suggested: $${template.price}. Price it above what one call costs you in credits.`
+                  : "What a buyer pays per call, in USDC. Price it above what one call costs you in credits."
+              }
+            >
               <div className="relative">
                 <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-ink-3">$</span>
                 <input
@@ -498,13 +649,87 @@ function EndpointForm({ existing }: { existing?: Endpoint }) {
             </button>
             <p className="text-xs text-ink-3">
               {saved
-                ? "If you change the URL, method, auth, headers or body overrides, we re-run the test before buyers can call it again."
-                : "We make one real call to your upstream. A 2xx response makes the endpoint active."}
+                ? "If you change the provider API, key, headers or spend guards, we re-run the test before agents can buy again."
+                : "We make one real call with your key. A 2xx response puts your credits up for sale."}
             </p>
           </div>
         </aside>
       </div>
     </form>
+  );
+}
+
+function TemplatePicker({ onPick }: { onPick: (t: CreditTemplate | null) => void }) {
+  return (
+    <>
+      <PageHeader title="List credits" sub="Which service are your leftover credits on? Pick one and we fill in the technical details. You just add your key and a price.">
+        <Link href="/endpoints" className="btn btn-ghost">
+          <ArrowLeft className="size-4" /> Cancel
+        </Link>
+      </PageHeader>
+      <div className="space-y-8">
+        {TEMPLATE_CATEGORIES.map((cat) => (
+          <section key={cat}>
+            <h2 className="mb-3 text-xs font-medium tracking-[0.14em] text-ink-3 uppercase">{cat}</h2>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {TEMPLATES.filter((t) => t.category === cat).map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => onPick(t)}
+                  className="card group flex items-start gap-4 p-4 text-left transition-colors hover:border-ink-3 hover:bg-surface-2"
+                >
+                  <ProviderTile t={t} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-medium">{t.provider}</span>
+                    <span className="block text-sm text-ink-2">{t.product}</span>
+                    <span className="mt-1 block text-xs text-ink-3">{t.blurb}</span>
+                    <span className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="rounded-full bg-lime/40 px-2 py-0.5 text-lime-ink">from ${t.price} / call</span>
+                      {t.async && (
+                        <span className="inline-flex items-center gap-1 text-ink-3">
+                          <Clock className="size-3" /> async
+                        </span>
+                      )}
+                    </span>
+                  </span>
+                  <ArrowRight className="mt-1 size-4 text-ink-3 transition-transform group-hover:translate-x-0.5" />
+                </button>
+              ))}
+            </div>
+          </section>
+        ))}
+        <section>
+          <h2 className="mb-3 text-xs font-medium tracking-[0.14em] text-ink-3 uppercase">Something else</h2>
+          <button
+            type="button"
+            onClick={() => onPick(null)}
+            className="flex w-full items-center gap-4 rounded-[20px] border border-dashed border-line-strong p-4 text-left transition-colors hover:border-ink-3 hover:bg-surface-2 sm:max-w-md"
+          >
+            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-surface-2">
+              <Plus className="size-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-medium">Custom API</span>
+              <span className="block text-xs text-ink-3">Any HTTPS API with a key. You fill in the URL, auth and example request.</span>
+            </span>
+            <ArrowRight className="size-4 text-ink-3" />
+          </button>
+        </section>
+      </div>
+    </>
+  );
+}
+
+function ProviderTile({ t, size = "md" }: { t: CreditTemplate; size?: "md" | "lg" }) {
+  return (
+    <span
+      aria-hidden
+      className={`grid shrink-0 place-items-center rounded-xl font-semibold text-white ${size === "lg" ? "size-12 text-base" : "size-11 text-sm"}`}
+      style={{ background: t.color }}
+    >
+      {t.initials}
+    </span>
   );
 }
 
@@ -558,15 +783,15 @@ function TestStep({
         title={`Test ${name}`}
         sub={
           retest
-            ? "You changed how we call your upstream, so buyers can’t call it until this test passes again."
-            : "One real call through the gateway to your upstream."
+            ? "You changed how we call the provider, so agents can’t buy until this test passes again."
+            : "One real call through the gateway, using your key."
         }
       />
       <div className="card card-pad">
         {running ? (
           <div className="flex flex-col items-center gap-3 py-12 text-sm text-ink-2">
             <Spinner className="size-6" />
-            Calling your upstream…
+            Calling the provider with your key…
           </div>
         ) : error ? (
           <>
@@ -586,10 +811,10 @@ function TestStep({
               {passed ? <CircleCheck className="mt-0.5 size-5 text-good-text" /> : <CircleX className="mt-0.5 size-5 text-bad-text" />}
               <div>
                 <div className={`font-medium ${passed ? "text-good-text" : "text-bad-text"}`}>
-                  {passed ? (result.activated ? "It works. Your endpoint is live." : "It works.") : "The upstream didn’t return a 2xx"}
+                  {passed ? (result.activated ? "It works. Your credits are listed." : "It works.") : "The provider didn’t return a 2xx"}
                 </div>
                 <div className="mt-0.5 text-sm text-ink-2">
-                  Upstream status <span className="num font-mono text-ink">{result.status ?? "no response"}</span>
+                  Provider status <span className="num font-mono text-ink">{result.status ?? "no response"}</span>
                   {result.latencyMs != null && (
                     <>
                       {" "}
@@ -618,7 +843,7 @@ function TestStep({
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button className="btn btn-primary" onClick={onDone}>
-                    View endpoint
+                    View listing
                   </button>
                   <Link href="/claude" className="btn btn-ghost">
                     Use with Claude

@@ -8,7 +8,7 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = {
   title: { default: "Tollgate", template: "%s · Tollgate" },
-  description: "Tollgate: put any API behind x402 pay-per-call and watch agents pay in USDC on Base.",
+  description: "Tollgate: sell your leftover API credits to AI agents, one call at a time, paid in USDC over x402 on Base. Every payment screened by Intercepta.",
   icons: { icon: "/favicon.svg" },
 };
 

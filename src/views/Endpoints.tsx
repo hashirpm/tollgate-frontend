@@ -23,9 +23,9 @@ export function EndpointsPage() {
 
   return (
     <>
-      <PageHeader title="Endpoints" sub="The APIs you sell. Only active endpoints are listed in the catalog Claude sees.">
+      <PageHeader title="Listings" sub="The API credits you’re selling. Only live listings appear in the catalog Claude sees.">
         <Link href="/endpoints/new" className="btn btn-primary">
-          <Plus className="size-4" /> Add endpoint
+          <Plus className="size-4" /> List credits
         </Link>
       </PageHeader>
 
@@ -49,14 +49,14 @@ export function EndpointsPage() {
         ) : rows.length === 0 ? (
           <EmptyState
             icon={<Blocks className="size-5" />}
-            title="Add your first endpoint"
+            title="List your first credits"
             action={
               <Link href="/endpoints/new" className="btn btn-primary">
-                <Plus className="size-4" /> Add endpoint
+                <Plus className="size-4" /> List credits
               </Link>
             }
           >
-            Point Tollgate at any HTTPS API, set a price per call, and agents can start paying for it.
+            Connect the API your leftover credits are on, set a price per call, and agents can start buying them.
           </EmptyState>
         ) : (
           <div className="overflow-x-auto">
@@ -67,7 +67,7 @@ export function EndpointsPage() {
                 <div className="text-right">Price</div>
                 <div>Status</div>
                 <div className="text-right">Calls</div>
-                <div className="text-right">Income</div>
+                <div className="text-right">Earned</div>
                 <div>Paid URL</div>
                 <div className="text-right">Actions</div>
               </div>
@@ -98,7 +98,7 @@ export function EndpointsPage() {
                           {busy ? <Spinner /> : <Play className="size-4" />}
                         </IconBtn>
                       ) : (
-                        // pending endpoints go live by passing a test, not by a toggle
+                        // pending listings go live by passing a test, not by a toggle
                         <Link href={`/endpoints/${e.id}/edit`} className="btn btn-ghost btn-sm" title="Run the test to activate">
                           Test
                         </Link>
@@ -120,14 +120,14 @@ export function EndpointsPage() {
 
       <ConfirmDialog
         open={!!toDelete}
-        title={`Delete ${toDelete?.name ?? "endpoint"}?`}
+        title={`Delete ${toDelete?.name ?? "listing"}?`}
         confirmLabel="Delete"
         danger
         busy={del.isPending}
         onCancel={() => setToDelete(null)}
         onConfirm={() => toDelete && del.mutate(toDelete.id, { onSuccess: () => setToDelete(null) })}
       >
-        Its paid URL stops working and it leaves the catalog. This can’t be undone.
+        Agents can no longer buy these credits: the paid URL stops working and it leaves the catalog. This can’t be undone.
       </ConfirmDialog>
     </>
   );

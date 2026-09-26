@@ -30,9 +30,9 @@ export function OverviewPage() {
 
   return (
     <>
-      <PageHeader title="Overview" sub="Paid calls across your endpoints, live.">
+      <PageHeader title="Overview" sub="Calls agents bought from your credits, live.">
         <Link href="/endpoints/new" className="btn btn-primary">
-          <Plus className="size-4" /> Add endpoint
+          <Plus className="size-4" /> List credits
         </Link>
       </PageHeader>
 
@@ -46,7 +46,7 @@ export function OverviewPage() {
         <div className="sm:col-span-2 xl:col-span-1">
           <KpiTile
             hero
-            label={`Income · ${range}`}
+            label={`Earned · ${range}`}
             icon={<CircleDollarSign className="size-4" />}
             value={s ? usdc(s.incomeAtomic) : "—"}
             foot="USDC, settled"
@@ -54,15 +54,15 @@ export function OverviewPage() {
             trend={s?.series.map((p) => atomicToUsd(p.incomeAtomic))}
           />
         </div>
-        <KpiTile label="Paid calls" icon={<Zap className="size-4" />} value={s?.paidCalls.toLocaleString() ?? "—"} foot={period} loading={stats.isPending} trend={s?.series.map((p) => p.calls)} />
+        <KpiTile label="Calls sold" icon={<Zap className="size-4" />} value={s?.paidCalls.toLocaleString() ?? "—"} foot={period} loading={stats.isPending} trend={s?.series.map((p) => p.calls)} />
         <KpiTile
-          label="Failed upstream"
+          label="Provider errors"
           icon={<AlertTriangle className="size-4" />}
           value={s?.failedCalls.toLocaleString() ?? "—"}
           foot="buyers not charged"
           loading={stats.isPending}
         />
-        <KpiTile label="Unique payers" icon={<Users className="size-4" />} value={s?.uniquePayers.toLocaleString() ?? "—"} foot={period} loading={stats.isPending} />
+        <KpiTile label="Unique buyers" icon={<Users className="size-4" />} value={s?.uniquePayers.toLocaleString() ?? "—"} foot={period} loading={stats.isPending} />
         <KpiTile
           label="Balance"
           icon={<Wallet className="size-4" />}
@@ -72,6 +72,10 @@ export function OverviewPage() {
         />
       </section>
 
+      <section className="mt-4">
+        <ProtectionCard />
+      </section>
+
       <section className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div className="xl:col-span-2">
           <IncomeChart series={s?.series} range={range} onRange={setRange} loading={stats.isPending} />
@@ -79,7 +83,7 @@ export function OverviewPage() {
 
         <div className="card card-pad flex flex-col">
           <div className="mb-4 flex items-center justify-between">
-            <div className="card-title">Top endpoints</div>
+            <div className="card-title">Top listings</div>
             <Link href="/endpoints" className="inline-flex items-center gap-1 text-sm text-ink-2 hover:text-ink">
               All <ArrowRight className="size-3.5" />
             </Link>
@@ -93,7 +97,7 @@ export function OverviewPage() {
           ) : endpoints.error ? (
             <ErrorState error={endpoints.error} onRetry={() => endpoints.refetch()} />
           ) : top.length === 0 ? (
-            <EmptyState icon={<Blocks className="size-5" />} title="No endpoints yet" action={<Link href="/endpoints/new" className="btn btn-primary btn-sm">Add your first endpoint</Link>} />
+            <EmptyState icon={<Blocks className="size-5" />} title="No listings yet" action={<Link href="/endpoints/new" className="btn btn-primary btn-sm">List your first credits</Link>} />
           ) : (
             <ul className="-mx-2 space-y-1">
               {top.map((e) => (
@@ -118,9 +122,6 @@ export function OverviewPage() {
         </div>
       </section>
 
-      <section className="mt-4">
-        <ProtectionCard />
-      </section>
 
       <section className="mt-4">
         <FeedList rows={feed.rows} loading={feed.isPending} error={feed.error} onRetry={() => feed.refetch()} />

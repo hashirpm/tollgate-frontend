@@ -7,8 +7,8 @@ import s from "./landing.module.css";
 
 // Illustrative traffic for the hero animation. Nothing here is real data.
 const LANES = [
-  { agent: "claude-agent", method: "GET", path: "/v1/forecast", price: 0.01, ms: 142 },
-  { agent: "gpt-researcher", method: "POST", path: "/v1/messages", price: 0.05, ms: 388 },
+  { agent: "claude-agent", method: "POST", path: "/v1/text-to-speech", price: 0.03, ms: 412 },
+  { agent: "video-agent", method: "POST", path: "/kling/text-to-video", price: 0.75, ms: 690 },
 ] as const;
 
 /**
@@ -57,7 +57,7 @@ export function TollScene() {
         onPointerLeave={onLeave}
         className={`relative overflow-hidden rounded-[28px] border border-line bg-surface/80 shadow-[0_30px_80px_-30px_rgb(15_18_25/0.35)] backdrop-blur-xl ${s.tilt} ${s.spot}`}
         role="img"
-        aria-label="Animation: AI agent requests stop at a toll barrier, receive HTTP 402, pay in USDC, and pass through with 200 OK."
+        aria-label="Animation: AI agents buying leftover API credits stop at a toll barrier, receive HTTP 402, pay in USDC, and pass through with 200 OK."
       >
         {/* window chrome */}
         <div className="relative z-10 flex items-center justify-between border-b border-line px-5 py-3">
@@ -95,16 +95,16 @@ export function TollScene() {
         {/* HTTP replay of lane A */}
         <div className="absolute right-4 bottom-4 left-4 z-10 rounded-2xl border border-line bg-ink p-3.5 font-mono text-[11px] leading-[1.7] text-white/80 shadow-xl sm:right-auto sm:w-[62%]">
           <div className={s.t1}>
-            <span className="text-lime">→</span> GET /v1/forecast
+            <span className="text-lime">→</span> POST /v1/text-to-speech
           </div>
           <div className={s.t2}>
-            <span className="text-[#f87171]">←</span> 402 Payment Required · <span className="text-white">$0.0100 USDC</span>
+            <span className="text-[#f87171]">←</span> 402 Payment Required · <span className="text-white">$0.0300 USDC</span>
           </div>
           <div className={s.t3}>
             <span className="text-lime">→</span> X-PAYMENT: 0x9f3c…e21a <span className="text-white/40">signed</span>
           </div>
           <div className={s.t4}>
-            <span className="text-[#4ade80]">←</span> 200 OK · 142ms
+            <span className="text-[#4ade80]">←</span> 200 OK · 412ms
             <span className={`ml-0.5 inline-block h-3 w-1.5 translate-y-0.5 bg-lime ${s.caret}`} />
           </div>
         </div>

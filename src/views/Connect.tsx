@@ -1,32 +1,17 @@
 "use client";
 
-import { ArrowRight, ArrowUpRight, Bot, Check, KeyRound, Plus, X, Zap } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Bot, Check, KeyRound, Plus, ShieldCheck, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import s from "@/components/landing/landing.module.css";
 import { TollScene } from "@/components/landing/TollScene";
 import { SignInPanel } from "@/components/SignInPanel";
 import { Logo, Spinner } from "@/components/ui";
-import { usd } from "@/lib/format";
 import { useSession } from "@/lib/auth";
 import { CopyButton } from "@/components/CopyButton";
-import { CHAIN, CLAUDE_CODE_ADD, CLAUDE_CONNECTOR_LINK, MCP_URL } from "@/lib/config";
+import { CHAIN, CLAUDE_CODE_ADD, CLAUDE_CONNECTOR_LINK, INTERCEPTA_URL, MCP_URL } from "@/lib/config";
 
-const WORDS = ["your API.", "your model.", "your data.", "every call."];
-
-// decorative marquee: the kinds of things people put a toll on
-const ROUTES = [
-  ["GET", "/v1/forecast", "0.01"],
-  ["POST", "/v1/messages", "0.05"],
-  ["GET", "/quote/IBM", "0.015"],
-  ["POST", "/embed", "0.002"],
-  ["GET", "/gas/oracle", "0.005"],
-  ["POST", "/search", "0.02"],
-  ["GET", "/pools/tvl", "0.02"],
-  ["POST", "/transcribe", "0.03"],
-  ["GET", "/proposals", "0.01"],
-  ["POST", "/ocr", "0.04"],
-] as const;
+const WORDS = ["API credits.", "voice credits.", "image credits.", "video credits."];
 
 export function ConnectPage() {
   const session = useSession();
@@ -37,6 +22,8 @@ export function ConnectPage() {
   const signedIn = session.status === "signed-in";
   // bounced here from a protected page → go straight to the login dialog
   const [open, setOpen] = useState(!!param);
+  // connector instructions only after "Add to Claude" is clicked
+  const [claudeHelp, setClaudeHelp] = useState(false);
 
   useEffect(() => {
     if (signedIn) router.replace(from);
@@ -72,17 +59,26 @@ export function ConnectPage() {
         <main className="grid flex-1 items-center gap-14 pt-8 pb-10 lg:grid-cols-[1.02fr_1fr] lg:gap-10 lg:pt-4">
           <section>
             <div className={s.rise} style={{ "--i": 0 } as CSSProperties}>
-              <span className="inline-flex items-center gap-2 rounded-full border border-line bg-surface/80 py-1 pr-3 pl-1 text-xs text-ink-2 shadow-sm backdrop-blur">
-                <span className="rounded-full bg-ink px-2 py-0.5 font-mono text-[10px] font-semibold whitespace-nowrap text-lime">HTTP 402</span>
-                <span>
-                  Pay-per-call for AI agents<span className="hidden sm:inline">, settled in USDC on {CHAIN.name}</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-2 rounded-full border border-line bg-surface/80 py-1 pr-3 pl-1 text-xs text-ink-2 shadow-sm backdrop-blur">
+                  <span className="rounded-full bg-ink px-2 py-0.5 font-mono text-[10px] font-semibold whitespace-nowrap text-lime">HTTP 402</span>
+                  USDC on {CHAIN.name}
                 </span>
-              </span>
+                <a
+                  href={INTERCEPTA_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Every payment is screened by Intercepta: sanctioned, scam and phishing wallets are refused before USDC settles."
+                  className="inline-flex items-center gap-1.5 rounded-full border border-good/30 bg-good/10 px-3 py-1 text-xs font-medium text-good-text backdrop-blur transition-colors hover:bg-good/15"
+                >
+                  <ShieldCheck className="size-3.5" /> Secured by Intercepta
+                </a>
+              </div>
             </div>
 
             <h1 className="mt-7 text-[44px] leading-[1.02] font-semibold tracking-[-0.035em] sm:text-[68px] xl:text-[76px]">
               <span className={`block ${s.rise}`} style={{ "--i": 1 } as CSSProperties}>
-                Put a <span className={s.marker}>toll</span> on
+                Sell your <span className={s.marker}>leftover</span>
               </span>
               <span className={`block ${s.rise}`} style={{ "--i": 2 } as CSSProperties}>
                 <span className={s.rotator}>
@@ -98,9 +94,7 @@ export function ConnectPage() {
             </h1>
 
             <p className={`mt-6 max-w-[34rem] text-[17px] leading-relaxed text-ink-2 ${s.rise}`} style={{ "--i": 3 } as CSSProperties}>
-              Tollgate sits in front of any HTTP API. Claude and other agents hit a <span className="font-mono text-[15px] text-ink">402</span>,
-              pay in USDC and get the response, with no signup, no API keys to hand out and no invoices. Your upstream key never leaves the
-              gateway.
+              Got credits you won’t use? AI agents buy them one call at a time and pay you in USDC. Your API key never leaves the gateway.
             </p>
 
             <div className={`mt-9 flex flex-wrap items-center gap-3 ${s.rise}`} style={{ "--i": 4 } as CSSProperties}>
@@ -113,18 +107,15 @@ export function ConnectPage() {
                 {cta}
                 <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
               </button>
-              <AddToClaudeButton />
-              <a href="https://x402.org" target="_blank" rel="noreferrer" className="px-2 text-sm font-medium text-ink-2 underline-offset-4 hover:text-ink hover:underline">
-                How x402 works
-              </a>
+              <AddToClaudeButton onCopied={() => setClaudeHelp(true)} />
             </div>
-            <AddToClaudeHelp />
+            {claudeHelp && <AddToClaudeHelp />}
 
             <ul className={`mt-10 flex flex-wrap gap-x-6 gap-y-3 text-sm text-ink-2 ${s.rise}`} style={{ "--i": 5 } as CSSProperties}>
               {[
-                { Icon: Zap, t: "Live in one test call" },
+                { Icon: ShieldCheck, t: "Screened by Intercepta" },
                 { Icon: KeyRound, t: "Key stays server-side" },
-                { Icon: Bot, t: "Claude-ready via MCP" },
+                { Icon: Bot, t: "Agents buy via MCP" },
               ].map(({ Icon, t }) => (
                 <li key={t} className="flex items-center gap-2">
                   <span className="grid size-7 place-items-center rounded-lg border border-line bg-surface shadow-sm">
@@ -141,7 +132,6 @@ export function ConnectPage() {
           </section>
         </main>
 
-        <Marquee />
       </div>
 
       <SignInDialog open={open} onClose={() => setOpen(false)} session={session} />
@@ -157,30 +147,6 @@ function Backdrop() {
       <div className={`absolute top-10 right-[-12%] size-[620px] rounded-full bg-violet/30 ${s.blobB}`} />
       <div className={`absolute bottom-[-20%] left-[30%] size-[520px] rounded-full bg-[#7dd3fc]/25 ${s.blobC}`} />
       <div className={`absolute inset-0 ${s.grain}`} />
-    </div>
-  );
-}
-
-function Marquee() {
-  const items = [...ROUTES, ...ROUTES];
-  return (
-    <div className="pb-8">
-      <div className="mb-3 text-center text-[11px] tracking-[0.18em] text-ink-3 uppercase">If it speaks HTTP, it can charge per call</div>
-      <div className={`overflow-hidden ${s.marquee}`}>
-        <div className={`flex w-max gap-3 ${s.marqueeTrack}`}>
-          {items.map(([m, p, price], i) => (
-            <span
-              key={i}
-              aria-hidden={i >= ROUTES.length}
-              className="inline-flex items-center gap-2 rounded-full border border-line bg-surface/80 px-3.5 py-2 font-mono text-xs whitespace-nowrap shadow-sm backdrop-blur"
-            >
-              <span className={m === "GET" ? "text-good-text" : "text-violet"}>{m}</span>
-              <span className="text-ink">{p}</span>
-              <span className="rounded-full bg-lime/40 px-1.5 text-[11px] text-lime-ink">{usd(Number(price))}</span>
-            </span>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
@@ -226,16 +192,19 @@ function SignInDialog({ open, onClose, session }: { open: boolean; onClose: () =
  * Claude doesn't always show that dialog (e.g. a Free plan already at its one
  * custom connector), so the click also copies the URL for Add → Custom connector.
  */
-function AddToClaudeButton() {
+function AddToClaudeButton({ onCopied }: { onCopied: () => void }) {
   const [copied, setCopied] = useState(false);
-  const copy = () =>
-    navigator.clipboard?.writeText(MCP_URL).then(
+  const copy = () => {
+    // the manual fallback is shown even if the clipboard write fails
+    onCopied();
+    return navigator.clipboard?.writeText(MCP_URL).then(
       () => {
         setCopied(true);
         setTimeout(() => setCopied(false), 6000);
       },
       () => {},
     );
+  };
   return (
     <a
       href={CLAUDE_CONNECTOR_LINK}
