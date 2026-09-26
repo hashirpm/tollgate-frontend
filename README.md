@@ -69,11 +69,16 @@ including field names the frontend plan doesn't pin down. Each response goes
 through a normalizer there, so if the Worker names a field differently, fix it in
 that one file. Assumptions worth checking against the backend:
 
-- Endpoints: `GET/POST /api/endpoints`, `GET/PATCH/DELETE /api/endpoints/:id`,
-  `POST /api/endpoints/:id/test` → `{ ok, status, body }`. Pause/activate is
-  `PATCH { status }`. The secret is sent as `auth_value` (omitted to keep the
-  stored one); responses expose only `has_auth_value`. Price is `price_atomic`
-  (integer string, 6 decimals).
+- Endpoints (matches `backend/worker/src/routes/endpoints.ts`): `GET/POST /api/endpoints`,
+  `GET/PATCH/DELETE /api/endpoints/:id`, `POST /api/endpoints/:id/test` →
+  `{ ok, status, latency_ms, content_type, body, activated }`. Writes send
+  `auth: { type, name, value? }` (omit `value` to keep the stored secret),
+  `price_usd` as a decimal string, and `example_body` / `body_overrides` as parsed
+  JSON. Reads return auth flat (`auth_type`, `auth_name`, `auth_set`) and
+  `example_body` as a JSON string. PATCH sends only changed fields; changing
+  `url`, `method`, `auth`, `static_headers` or `body_overrides` returns
+  `retest_required` and the form re-runs the test. A 400 carries
+  `issues: [{ path, message }]`, shown on the matching field.
 - Stats: `GET /api/stats?range=24h|30d&endpoint_id=` → `{ income_atomic, paid_calls,
   failed_calls, unique_payers, series: [{ bucket, income_atomic, calls }] }`.
 - Feed: `GET /api/feed?since|before|endpoint_id|status|limit` → rows with `id, ts,

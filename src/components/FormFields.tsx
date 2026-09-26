@@ -1,7 +1,6 @@
 "use client";
 
 import { KeyRound, Plus, X } from "lucide-react";
-import { useId } from "react";
 import { jsonError } from "@/lib/json";
 
 export function JsonField({
@@ -10,6 +9,8 @@ export function JsonField({
   placeholder,
   rows = 6,
   object,
+  required,
+  invalid,
   id,
 }: {
   value: string;
@@ -17,6 +18,9 @@ export function JsonField({
   placeholder?: string;
   rows?: number;
   object?: boolean;
+  required?: boolean;
+  /** Set by the form when it has its own error for this field. */
+  invalid?: boolean;
   id?: string;
 }) {
   const err = jsonError(value, { object });
@@ -33,12 +37,12 @@ export function JsonField({
         spellCheck={false}
         value={value}
         placeholder={placeholder}
-        aria-invalid={!!err}
+        aria-invalid={!!err || !!invalid}
         onChange={(e) => onChange(e.target.value)}
         onBlur={format}
       />
       <div className="mt-1.5 flex justify-between text-xs">
-        {err ? <span className="text-bad-text">Invalid JSON: {err}</span> : <span className="text-ink-3">{value.trim() ? "Valid JSON" : "Optional"}</span>}
+        {err ? <span className="text-bad-text">Invalid JSON: {err}</span> : <span className="text-ink-3">{value.trim() ? "Valid JSON" : required ? "Required" : "Optional"}</span>}
       </div>
     </div>
   );
@@ -69,51 +73,38 @@ export function KeyValueRows({ rows, onChange, keyPlaceholder = "Header", valueP
 }
 
 /**
- * Write-only secret. On edit, a stored secret is never shown: we display
- * "••• set" with a Replace button. `value === undefined` means "keep".
+ * Write-only secret. A stored secret is never sent back, so on edit the input
+ * starts empty and blank means "keep the saved one".
  */
 export function SecretField({
+  id,
   hasStored,
   value,
   onChange,
   placeholder,
+  invalid,
 }: {
+  id?: string;
   hasStored: boolean;
-  value: string | undefined;
-  onChange: (v: string | undefined) => void;
+  value: string;
+  onChange: (v: string) => void;
   placeholder?: string;
+  invalid?: boolean;
 }) {
-  const id = useId();
-  if (hasStored && value === undefined) {
-    return (
-      <div className="flex h-10 items-center justify-between gap-3 rounded-xl border border-line-strong bg-surface-2 pr-1 pl-3.5">
-        <span className="flex items-center gap-2 text-sm text-ink-2">
-          <KeyRound className="size-4 text-ink-3" />
-          <span className="font-mono tracking-widest">•••</span> set
-        </span>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => onChange("")}>
-          Replace
-        </button>
-      </div>
-    );
-  }
   return (
-    <div className="flex gap-2">
+    <div className="relative">
+      {hasStored && <KeyRound className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-ink-3" />}
       <input
         id={id}
-        className="input font-mono text-[13px]"
+        className={`input font-mono text-[13px] ${hasStored ? "pl-10" : ""}`}
         type="password"
         autoComplete="off"
         spellCheck={false}
-        placeholder={placeholder}
-        value={value ?? ""}
+        placeholder={hasStored ? "•••••• saved — leave blank to keep" : placeholder}
+        value={value}
+        aria-invalid={invalid}
         onChange={(e) => onChange(e.target.value)}
       />
-      {hasStored && (
-        <button type="button" className="btn btn-ghost" onClick={() => onChange(undefined)}>
-          Keep current
-        </button>
-      )}
     </div>
   );
 }

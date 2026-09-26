@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type EndpointInput, type EndpointStatus } from "@/lib/api";
+import { api, type EndpointInput, type EndpointPatch, type SavedEndpoint } from "@/lib/api";
 
 export function useEndpoints() {
   return useQuery({ queryKey: ["endpoints"], queryFn: api.endpoints, refetchInterval: 10_000 });
@@ -23,20 +23,23 @@ function useInvalidateEndpoints() {
   };
 }
 
+/** POST when there's no id yet, otherwise PATCH with only the changed fields. */
 export function useSaveEndpoint() {
   const invalidate = useInvalidateEndpoints();
   return useMutation({
-    mutationFn: ({ id, input }: { id?: string; input: EndpointInput }) =>
-      id ? api.updateEndpoint(id, input) : api.createEndpoint(input),
-    onSuccess: (ep) => invalidate(ep.id),
+    mutationFn: (v: { id?: undefined; input: EndpointInput } | { id: string; input: EndpointPatch }): Promise<SavedEndpoint> =>
+      v.id
+        ? api.updateEndpoint(v.id, v.input)
+        : api.createEndpoint(v.input as EndpointInput).then((endpoint) => ({ endpoint, retestRequired: true })),
+    onSuccess: (r) => invalidate(r.endpoint.id),
   });
 }
 
 export function useSetEndpointStatus() {
   const invalidate = useInvalidateEndpoints();
   return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: EndpointStatus }) => api.updateEndpoint(id, { status }),
-    onSuccess: (ep) => invalidate(ep.id),
+    mutationFn: ({ id, status }: { id: string; status: "active" | "paused" }) => api.updateEndpoint(id, { status }),
+    onSuccess: (r) => invalidate(r.endpoint.id),
   });
 }
 

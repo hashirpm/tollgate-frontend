@@ -74,13 +74,13 @@ export function EmptyState({ icon, title, children, action }: { icon?: ReactNode
   );
 }
 
-export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+export function ErrorState({ error, onRetry, title = "Couldn’t load this" }: { error: unknown; onRetry?: () => void; title?: string }) {
   const msg = error instanceof Error ? error.message : "Something went wrong.";
   return (
     <div className="flex items-start gap-3 rounded-2xl border border-bad/25 bg-bad/5 p-4 text-sm">
       <AlertTriangle className="mt-0.5 size-4 shrink-0 text-bad-text" />
       <div className="min-w-0 flex-1">
-        <div className="font-medium text-bad-text">Couldn’t load this</div>
+        <div className="font-medium text-bad-text">{title}</div>
         <div className="mt-0.5 break-words text-ink-2">{msg}</div>
       </div>
       {onRetry && (

@@ -1,22 +1,40 @@
 // Client for the gateway Worker (/api/*, /catalog). Same origin, bearer auth.
 //
-// CONTRACT NOTE: request/response shapes below follow the frontend plan
-// ("Backend additions this needs"). Field names the plan doesn't pin down are
-// assumptions, and every one of them is normalized in this file only, so if
-// the Worker names something differently, fix it here and nowhere else.
+// Request shapes match worker/src/routes/endpoints.ts. Responses are normalized
+// here only, so if the Worker renames something, fix it in this file.
 
 import { getAccount } from "wagmi/actions";
 import { config } from "../wagmi";
 import { clearToken, getToken } from "./session";
 
+export interface ApiIssue {
+  /** Dotted field path from the Worker's zod error, e.g. "auth.name". Empty for form-level errors. */
+  path: string;
+  message: string;
+}
+
 export class ApiError extends Error {
   status: number;
   body: unknown;
+  issues: ApiIssue[];
   constructor(status: number, message: string, body?: unknown) {
     super(message);
     this.status = status;
     this.body = body;
+    this.issues = issuesOf(body);
   }
+}
+
+/** { error: "invalid_request", issues: [{ path, message }] } → issues; a bare { error: "url must use https" } → one issue without a path. */
+function issuesOf(body: unknown): ApiIssue[] {
+  if (!body || typeof body !== "object") return [];
+  const b = body as Record<string, unknown>;
+  if (Array.isArray(b.issues)) {
+    return b.issues
+      .filter((i): i is Record<string, unknown> => !!i && typeof i === "object")
+      .map((i) => ({ path: Array.isArray(i.path) ? i.path.join(".") : String(i.path ?? ""), message: String(i.message ?? "Invalid value") }));
+  }
+  return typeof b.error === "string" && b.error !== "invalid_request" ? [{ path: "", message: b.error }] : [];
 }
 
 type Query = Record<string, string | number | undefined | null>;
@@ -113,30 +131,43 @@ export interface Endpoint {
   staticHeaders: Record<string, string>;
   priceAtomic: bigint;
   exampleQuery: string;
+  /** Pretty-printed JSON text, "" when unset. */
   exampleBody: string;
+  /** Pretty-printed JSON object, "" when unset. */
   bodyOverrides: string;
-  maxBodyBytes: number | null;
+  maxBodyBytes: number;
   status: EndpointStatus;
   calls: number;
   incomeAtomic: bigint;
   createdAt: number | null;
 }
 
-/** What the form sends. Omit `auth_value` to keep the stored secret. */
+/** Omit `value` on PATCH to keep the stored secret. */
+export type AuthInput = { type: "none" } | { type: "header" | "query"; name: string; value?: string };
+
+/** POST /api/endpoints body. PATCH takes any subset (EndpointPatch). */
 export interface EndpointInput {
   name: string;
   description: string;
   method: HttpMethod;
   url: string;
-  auth_type: AuthType;
-  auth_name: string | null;
-  auth_value?: string;
+  auth: AuthInput;
   static_headers: Record<string, string>;
-  price_atomic: number; // integer atomic units, 6 decimals (the Worker's /catalog returns it as a number)
+  /** Decimal USD, at most 6 places, e.g. "0.0001". The Worker converts to atomic units. */
+  price_usd: string;
   example_query: string | null;
-  example_body: string | null;
-  body_overrides: string | null;
-  max_body_bytes: number | null;
+  /** Parsed JSON, sent upstream by the activation test. */
+  example_body: unknown;
+  body_overrides: Record<string, unknown> | null;
+  max_body_bytes: number;
+}
+
+export type EndpointPatch = Partial<EndpointInput> & { status?: "active" | "paused" };
+
+export interface SavedEndpoint {
+  endpoint: Endpoint;
+  /** The change moved the endpoint back to pending; run the test to reactivate it. */
+  retestRequired: boolean;
 }
 
 export interface StatsPoint {
@@ -173,6 +204,9 @@ export interface TestResult {
   ok: boolean;
   status: number | null;
   body: string;
+  contentType: string | null;
+  latencyMs: number | null;
+  activated: boolean;
   error: string | null;
 }
 
@@ -214,8 +248,13 @@ export function toMs(v: unknown): number {
   const p = Date.parse(String(v));
   return Number.isNaN(p) ? 0 : p;
 }
-/** JSON column that may arrive as a string or already parsed. */
-const jsonText = (v: unknown) => (v == null ? "" : typeof v === "string" ? v : JSON.stringify(v, null, 2));
+/** JSON that may arrive as a string (example_body) or already parsed (body_overrides) → pretty text. */
+function jsonText(v: unknown): string {
+  if (v == null) return "";
+  if (typeof v !== "string") return JSON.stringify(v, null, 2);
+  const parsed = safeParse(v);
+  return parsed === undefined ? v : JSON.stringify(parsed, null, 2);
+}
 
 /** Accept a bare array or an envelope like { endpoints: [...] } / { items: [...] }. */
 function list(data: unknown, ...keys: string[]): Raw[] {
@@ -235,6 +274,9 @@ function one(data: unknown, key: string): Raw {
   return (data ?? {}) as Raw;
 }
 
+/** The Worker's default when max_body_bytes is omitted on create. */
+export const DEFAULT_MAX_BODY_BYTES = 65_536;
+
 function toEndpoint(r: Raw): Endpoint {
   const headers = typeof r.static_headers === "string" ? safeParse(r.static_headers) : r.static_headers;
   return {
@@ -245,13 +287,13 @@ function toEndpoint(r: Raw): Endpoint {
     url: str(r.url ?? r.upstream_url),
     authType: (str(r.auth_type, "none") as AuthType) || "none",
     authName: str(r.auth_name),
-    hasAuthValue: Boolean(r.has_auth_value ?? r.auth_value_set ?? r.has_secret),
+    hasAuthValue: Boolean(r.auth_set),
     staticHeaders: headers && typeof headers === "object" ? (headers as Record<string, string>) : {},
     priceAtomic: big(r.price_atomic),
     exampleQuery: str(r.example_query),
     exampleBody: jsonText(r.example_body),
     bodyOverrides: jsonText(r.body_overrides),
-    maxBodyBytes: r.max_body_bytes == null ? null : num(r.max_body_bytes),
+    maxBodyBytes: num(r.max_body_bytes, DEFAULT_MAX_BODY_BYTES),
     status: (str(r.status, "pending") as EndpointStatus) || "pending",
     calls: num(r.calls),
     incomeAtomic: big(r.income_atomic),
@@ -329,8 +371,10 @@ export const api = {
   endpoints: () => request<unknown>("GET", "/api/endpoints").then((d) => list(d, "endpoints").map(toEndpoint)),
   endpoint: (id: string) => request<unknown>("GET", `/api/endpoints/${encodeURIComponent(id)}`).then((d) => toEndpoint(one(d, "endpoint"))),
   createEndpoint: (input: EndpointInput) => request<unknown>("POST", "/api/endpoints", { body: input }).then((d) => toEndpoint(one(d, "endpoint"))),
-  updateEndpoint: (id: string, patch: Partial<EndpointInput> | { status: EndpointStatus }) =>
-    request<unknown>("PATCH", `/api/endpoints/${encodeURIComponent(id)}`, { body: patch }).then((d) => toEndpoint(one(d, "endpoint"))),
+  updateEndpoint: (id: string, patch: EndpointPatch) =>
+    request<Raw>("PATCH", `/api/endpoints/${encodeURIComponent(id)}`, { body: patch }).then(
+      (d): SavedEndpoint => ({ endpoint: toEndpoint(one(d, "endpoint")), retestRequired: Boolean(d.retest_required) }),
+    ),
   deleteEndpoint: (id: string) => request<unknown>("DELETE", `/api/endpoints/${encodeURIComponent(id)}`),
   testEndpoint: (id: string) =>
     request<Raw>("POST", `/api/endpoints/${encodeURIComponent(id)}/test`).then(
@@ -338,6 +382,9 @@ export const api = {
         ok: Boolean(r.ok ?? (num(r.status) >= 200 && num(r.status) < 300)),
         status: r.status == null ? (r.upstream_status == null ? null : num(r.upstream_status)) : num(r.status),
         body: typeof r.body === "string" ? r.body : r.body == null ? "" : JSON.stringify(r.body, null, 2),
+        contentType: r.content_type == null ? null : str(r.content_type),
+        latencyMs: r.latency_ms == null ? null : num(r.latency_ms),
+        activated: Boolean(r.activated),
         error: r.error ? str(r.error) : null,
       }),
     ),
