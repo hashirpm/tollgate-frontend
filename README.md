@@ -1,8 +1,14 @@
 # Tollgate — seller dashboard
 
-Put any HTTP API behind x402 pay-per-call. Sellers connect a wallet, add an
-endpoint (URL + key + price), test it, and watch paid calls arrive live with
-BaseScan links while their USDC balance grows. Settles in USDC on Base Sepolia.
+Sell your leftover API credits to AI agents, one call at a time, over x402.
+Sellers connect a wallet, list the API their spare credits are on (URL + key +
+price per call), test it, and watch agents buy calls live with BaseScan links
+while their USDC balance grows. Settles in USDC on Base Sepolia.
+
+Every payment is screened by [Intercepta](https://intercepta.io): payers are
+checked before their payment is accepted, the pay page screens the seller,
+token and authorization before a buyer signs, and the seller's payout address
+is watched for address poisoning.
 
 Buyers (Claude via MCP) never use this UI; the only buyer-facing page is
 **Use with Claude**.

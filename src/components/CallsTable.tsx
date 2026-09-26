@@ -15,8 +15,8 @@ export function CallsTable({ rows }: { rows: Call[] }) {
       <div className="min-w-[860px]">
         <div className={`thead-row ${COLS}`}>
           <div>Time</div>
-          <div>Endpoint</div>
-          <div>Payer</div>
+          <div>Listing</div>
+          <div>Buyer</div>
           <div className="text-right">Amount</div>
           <div>Status</div>
           <div className="text-right">Tx</div>

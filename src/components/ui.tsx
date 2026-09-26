@@ -23,7 +23,7 @@ export function Logo({ sub = true }: { sub?: boolean }) {
       <LogoMark />
       <div className="leading-tight">
         <div className="text-[16px] font-semibold tracking-tight">Tollgate</div>
-        {sub && <div className="text-[11px] text-ink-3">x402 payments on Base</div>}
+        {sub && <div className="text-[11px] text-ink-3">Sell leftover API credits</div>}
       </div>
     </div>
   );

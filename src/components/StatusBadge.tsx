@@ -27,7 +27,7 @@ export function CallStatusBadge({ status }: { status: CallStatus }) {
       </span>
     );
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs whitespace-nowrap text-bad-text" title="The upstream API failed, so the buyer was not charged">
+    <span className="inline-flex items-center gap-1.5 text-xs whitespace-nowrap text-bad-text" title="The provider API failed, so the buyer was not charged">
       <CircleX className="size-3.5" /> Failed upstream · not charged
     </span>
   );

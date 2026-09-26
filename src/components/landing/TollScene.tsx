@@ -3,13 +3,38 @@
 import { Check, Zap } from "lucide-react";
 import { type PointerEvent, useRef, useState } from "react";
 import { avatarGradient } from "@/lib/format";
+import { TEMPLATES } from "@/lib/templates";
 import s from "./landing.module.css";
 
 // Illustrative traffic for the hero animation. Nothing here is real data.
 const LANES = [
-  { agent: "claude-agent", method: "GET", path: "/v1/forecast", price: 0.01, ms: 142 },
-  { agent: "gpt-researcher", method: "POST", path: "/v1/messages", price: 0.05, ms: 388 },
+  { agent: "claude-agent", method: "POST", path: "/v1/text-to-speech", price: 0.03, ms: 412 },
+  { agent: "video-agent", method: "POST", path: "/kling/text-to-video", price: 0.75, ms: 690 },
 ] as const;
+
+// Credits on sale around the scene: [template id, position, drift]
+const CHIPS = [
+  ["higgsfield-kling", "-top-8 right-8", s.chipA],
+  ["elevenlabs-tts", "-top-7 -left-6", s.chipB],
+  ["fal-flux", "-bottom-7 left-20", s.chipC],
+] as const;
+
+function CreditChip({ id, pos, drift }: { id: string; pos: string; drift: string }) {
+  const t = TEMPLATES.find((x) => x.id === id);
+  if (!t) return null;
+  return (
+    <div aria-hidden className={`absolute z-30 hidden items-center gap-2.5 rounded-2xl border border-line bg-surface/90 py-2 pr-3 pl-2 shadow-[0_14px_40px_-16px_rgb(15_18_25/0.35)] backdrop-blur xl:flex ${pos} ${drift}`}>
+      <span className="grid size-8 place-items-center rounded-lg text-[11px] font-semibold text-white" style={{ background: t.color }}>
+        {t.initials}
+      </span>
+      <span className="leading-tight">
+        <span className="block text-xs font-medium">{t.provider}</span>
+        <span className="block text-[10px] text-ink-3">{t.product}</span>
+      </span>
+      <span className="ml-1 rounded-full bg-lime/50 px-2 py-0.5 font-mono text-[10px] font-semibold text-lime-ink">${t.price}</span>
+    </div>
+  );
+}
 
 /**
  * The hero's centrepiece: two toll lanes. Agent requests drive up, the booth
@@ -39,13 +64,10 @@ export function TollScene() {
 
   return (
     <div className="relative">
+      {CHIPS.map(([id, pos, drift]) => (
+        <CreditChip key={id} id={id} pos={pos} drift={drift} />
+      ))}
       {/* floating accents behind the card */}
-      <div aria-hidden className={`absolute -top-6 -left-4 z-20 hidden rounded-2xl border border-line bg-surface px-3 py-2 shadow-lg sm:block ${s.float}`}>
-        <div className="text-[10px] tracking-wider text-ink-3 uppercase">HTTP</div>
-        <div className="font-mono text-sm font-semibold">
-          402 <span className="text-ink-3">→</span> <span className="text-good-text">200</span>
-        </div>
-      </div>
       <div aria-hidden className={`absolute -right-3 -bottom-5 z-20 hidden items-center gap-2 rounded-full border border-line bg-surface py-1.5 pr-3.5 pl-1.5 shadow-lg sm:flex ${s.floatSlow}`}>
         <span className="grid size-6 place-items-center rounded-full bg-[#2775ca] text-[11px] font-bold text-white">$</span>
         <span className="text-xs font-medium">USDC on Base</span>
@@ -57,7 +79,7 @@ export function TollScene() {
         onPointerLeave={onLeave}
         className={`relative overflow-hidden rounded-[28px] border border-line bg-surface/80 shadow-[0_30px_80px_-30px_rgb(15_18_25/0.35)] backdrop-blur-xl ${s.tilt} ${s.spot}`}
         role="img"
-        aria-label="Animation: AI agent requests stop at a toll barrier, receive HTTP 402, pay in USDC, and pass through with 200 OK."
+        aria-label="Animation: AI agents buying leftover API credits stop at a toll barrier, receive HTTP 402, pay in USDC, and pass through with 200 OK."
       >
         {/* window chrome */}
         <div className="relative z-10 flex items-center justify-between border-b border-line px-5 py-3">
@@ -95,16 +117,16 @@ export function TollScene() {
         {/* HTTP replay of lane A */}
         <div className="absolute right-4 bottom-4 left-4 z-10 rounded-2xl border border-line bg-ink p-3.5 font-mono text-[11px] leading-[1.7] text-white/80 shadow-xl sm:right-auto sm:w-[62%]">
           <div className={s.t1}>
-            <span className="text-lime">→</span> GET /v1/forecast
+            <span className="text-lime">→</span> POST /v1/text-to-speech
           </div>
           <div className={s.t2}>
-            <span className="text-[#f87171]">←</span> 402 Payment Required · <span className="text-white">$0.0100 USDC</span>
+            <span className="text-[#f87171]">←</span> 402 Payment Required · <span className="text-white">$0.0300 USDC</span>
           </div>
           <div className={s.t3}>
             <span className="text-lime">→</span> X-PAYMENT: 0x9f3c…e21a <span className="text-white/40">signed</span>
           </div>
           <div className={s.t4}>
-            <span className="text-[#4ade80]">←</span> 200 OK · 142ms
+            <span className="text-[#4ade80]">←</span> 200 OK · 412ms
             <span className={`ml-0.5 inline-block h-3 w-1.5 translate-y-0.5 bg-lime ${s.caret}`} />
           </div>
         </div>

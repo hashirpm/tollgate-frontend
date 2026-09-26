@@ -1,6 +1,7 @@
 "use client";
 
 import { Droplets, ExternalLink, Info, ListChecks } from "lucide-react";
+import { EnsName } from "@/components/Ens";
 import { CodeBlock } from "@/components/CopyButton";
 import { EmptyState, ErrorState, PageHeader, Skeleton } from "@/components/ui";
 import { useCatalog } from "@/hooks/useEndpoints";
@@ -30,7 +31,7 @@ export function ClaudePage() {
 
   return (
     <>
-      <PageHeader title="Use with Claude" sub="Give Claude a wallet and it can discover and pay for any active endpoint on this gateway." />
+      <PageHeader title="Use with Claude" sub="Give Claude a wallet and it can find and buy leftover credits listed on this gateway, one call at a time." />
 
       {!MCP_COMMAND && (
         <div className="mb-4 flex items-start gap-3 rounded-2xl border border-warn/40 bg-warn/10 p-4 text-sm">
@@ -92,7 +93,7 @@ export function ClaudePage() {
               <ErrorState error={catalog.error} onRetry={() => catalog.refetch()} />
             </div>
           ) : catalog.data.length === 0 ? (
-            <EmptyState title="Nothing listed yet">Endpoints appear here once they pass their test and are active.</EmptyState>
+            <EmptyState title="Nothing listed yet">Listings appear here once they pass their test and go live.</EmptyState>
           ) : (
             <ul>
               {catalog.data.map((c) => (
@@ -101,6 +102,7 @@ export function ClaudePage() {
                     <span className="truncate font-medium">{c.name}</span>
                     {c.priceUsd != null && <span className="num shrink-0 text-sm">{usd(c.priceUsd)}</span>}
                   </div>
+                  {c.ensName && <EnsName name={c.ensName} size="sm" className="mt-0.5" />}
                   {c.description && <p className="mt-1 line-clamp-2 text-sm text-ink-2">{c.description}</p>}
                   <div className="mt-1.5 truncate font-mono text-[11px] text-ink-3">
                     {c.method} {c.url}

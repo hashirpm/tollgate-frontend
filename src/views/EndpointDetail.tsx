@@ -5,6 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { CodeBlock, CopyUrl } from "@/components/CopyButton";
+import { EnsCard, EnsName } from "@/components/Ens";
 import { FeedList } from "@/components/FeedList";
 import { IncomeChart } from "@/components/IncomeChart";
 import { KpiTile } from "@/components/KpiTile";
@@ -13,6 +14,7 @@ import { Avatar, ErrorState, PageHeader, Skeleton, Spinner } from "@/components/
 import { useEndpoint, useSetEndpointStatus } from "@/hooks/useEndpoints";
 import { useFeed } from "@/hooks/useFeed";
 import { type Range, useStats } from "@/hooks/useStats";
+import { useSession } from "@/lib/auth";
 import { type Endpoint, paidUrl } from "@/lib/api";
 import { MCP_SERVER_NAME } from "@/lib/config";
 import { atomicToUsd, usdc } from "@/lib/format";
@@ -24,6 +26,7 @@ export function EndpointDetailPage() {
   const stats = useStats(range, id);
   const feed = useFeed({ endpointId: id, limit: 20 });
   const setStatus = useSetEndpointStatus();
+  const { address } = useSession();
 
   if (ep.isPending) {
     return (
@@ -41,7 +44,7 @@ export function EndpointDetailPage() {
   return (
     <>
       <Link href="/endpoints" className="mb-4 inline-flex items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
-        <ArrowLeft className="size-4" /> Endpoints
+        <ArrowLeft className="size-4" /> Listings
       </Link>
       <PageHeader
         title={
@@ -51,7 +54,12 @@ export function EndpointDetailPage() {
             <EndpointStatusBadge status={e.status} />
           </span>
         }
-        sub={e.description || <span className="text-ink-3">No description. Add one so Claude knows when to use this.</span>}
+        sub={
+          <>
+            {e.ensName && <EnsName name={e.ensName} size="md" className="mb-1.5" />}
+            <div>{e.description || <span className="text-ink-3">No description. Add one so agents know what these credits buy.</span>}</div>
+          </>
+        }
       >
         {e.status === "active" && (
           <button className="btn btn-ghost" disabled={setStatus.isPending} onClick={() => setStatus.mutate({ id: e.id, status: "paused" })}>
@@ -75,15 +83,16 @@ export function EndpointDetailPage() {
       )}
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiTile hero label={`Income · ${range}`} icon={<CircleDollarSign className="size-4" />} value={s ? usdc(s.incomeAtomic) : "—"} foot={`${usdc(e.priceAtomic)} per call`} loading={stats.isPending} trend={s?.series.map((p) => atomicToUsd(p.incomeAtomic))} />
-        <KpiTile label="Paid calls" icon={<Zap className="size-4" />} value={s?.paidCalls.toLocaleString() ?? "—"} foot={`${e.calls.toLocaleString()} all time`} loading={stats.isPending} trend={s?.series.map((p) => p.calls)} />
-        <KpiTile label="Failed upstream" icon={<AlertTriangle className="size-4" />} value={s?.failedCalls.toLocaleString() ?? "—"} foot="buyers not charged" loading={stats.isPending} />
-        <KpiTile label="Unique payers" icon={<Users className="size-4" />} value={s?.uniquePayers.toLocaleString() ?? "—"} foot={range === "24h" ? "last 24h" : "last 30 days"} loading={stats.isPending} />
+        <KpiTile hero label={`Earned · ${range}`} icon={<CircleDollarSign className="size-4" />} value={s ? usdc(s.incomeAtomic) : "—"} foot={`${usdc(e.priceAtomic)} per call`} loading={stats.isPending} trend={s?.series.map((p) => atomicToUsd(p.incomeAtomic))} />
+        <KpiTile label="Calls sold" icon={<Zap className="size-4" />} value={s?.paidCalls.toLocaleString() ?? "—"} foot={`${e.calls.toLocaleString()} all time`} loading={stats.isPending} trend={s?.series.map((p) => p.calls)} />
+        <KpiTile label="Provider errors" icon={<AlertTriangle className="size-4" />} value={s?.failedCalls.toLocaleString() ?? "—"} foot="buyers not charged" loading={stats.isPending} />
+        <KpiTile label="Unique buyers" icon={<Users className="size-4" />} value={s?.uniquePayers.toLocaleString() ?? "—"} foot={range === "24h" ? "last 24h" : "last 30 days"} loading={stats.isPending} />
       </section>
 
       <section className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1fr_420px]">
         <IncomeChart series={s?.series} range={range} onRange={setRange} loading={stats.isPending} />
         <div className="card card-pad space-y-5">
+          {e.ensName && address && <EnsCard name={e.ensName} payTo={address} whose="seller" />}
           <div>
             <div className="label">Paid URL</div>
             <CopyUrl url={url} />
@@ -94,7 +103,7 @@ export function EndpointDetailPage() {
                   Try it <ArrowUpRight className="size-3" />
                 </a>
               ) : (
-                "Available once the endpoint is active."
+                "Available once the listing is live."
               )}
             </p>
           </div>
@@ -105,9 +114,10 @@ export function EndpointDetailPage() {
           </div>
           <div>
             <div className="label">Call it from Claude</div>
-            <CodeBlock title="paid_fetch" code={mcpSnippet(e, url)} />
+            <CodeBlock title="paid_fetch" code={mcpSnippet(e)} />
             <p className="hint">
-              Arguments for the <span className="font-mono">paid_fetch</span> tool of the {MCP_SERVER_NAME} MCP server. <Link href="/claude" className="underline">Setup →</Link>
+              Arguments for the <span className="font-mono">paid_fetch</span> tool of the {MCP_SERVER_NAME} MCP server
+              {e.ensName ? ", by ENS name so the payee is checked on-chain" : ""}. <Link href="/claude" className="underline">Setup →</Link>
             </p>
           </div>
         </div>
@@ -132,11 +142,13 @@ function curlSnippet(e: Endpoint, url: string): string {
   return parts.join(" \\\n");
 }
 
-function mcpSnippet(e: Endpoint, url: string): string {
-  const args: Record<string, unknown> = { url: withQuery(url, e.exampleQuery), method: e.method };
+/** paid_fetch takes the endpoint id or its ENS name, plus query and body as strings. */
+function mcpSnippet(e: Endpoint): string {
+  const args: Record<string, unknown> = { endpoint_id: e.ensName ?? e.id };
+  if (e.exampleQuery.trim()) args.query = e.exampleQuery.replace(/^\?/, "");
   if (e.exampleBody.trim()) {
     try {
-      args.body = JSON.parse(e.exampleBody);
+      args.body = JSON.stringify(JSON.parse(e.exampleBody));
     } catch {
       args.body = e.exampleBody;
     }

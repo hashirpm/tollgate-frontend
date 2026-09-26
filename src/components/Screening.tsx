@@ -1,9 +1,10 @@
 "use client";
 
-import { CircleCheck, CircleDashed, CircleX, ShieldAlert, ShieldCheck, ShieldOff, ShieldX, TriangleAlert } from "lucide-react";
+import { ArrowUpRight, CircleCheck, CircleDashed, CircleX, ScanSearch, ShieldAlert, ShieldCheck, ShieldOff, ShieldX, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { usePayoutScreening, useScreenings } from "@/hooks/useScreening";
 import type { CheckStatus, PayerScreening, ScreenCheck, Screening, Verdict } from "@/lib/api";
+import { INTERCEPTA_URL } from "@/lib/config";
 import { dateTime, shortAddr, usdc } from "@/lib/format";
 import { PayerCell } from "./FeedList";
 import { ErrorState, Skeleton, Spinner } from "./ui";
@@ -104,7 +105,7 @@ export function ScreeningsTable({ rows }: { rows: PayerScreening[] }) {
       <div className="min-w-[860px]">
         <div className={`thead-row ${COLS}`}>
           <div>Time</div>
-          <div>Endpoint</div>
+          <div>Listing</div>
           <div>Payer</div>
           <div className="text-right">Amount</div>
           <div>Why</div>
@@ -141,18 +142,26 @@ export function ProtectionCard() {
   const off = p ? !p.enabled : first ? !first.enabled : false;
 
   return (
-    <div className="card card-pad">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <div className="card-title flex items-center gap-2">
-            <ShieldCheck className="size-4 text-good-text" /> Protected by Intercepta
+    <div className="card card-pad relative overflow-hidden border-good/25">
+      <div className="pointer-events-none absolute -top-24 -right-16 size-60 rounded-full bg-good/10 blur-3xl" />
+      <div className="relative mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="grid size-10 place-items-center rounded-xl bg-good/10">
+            <ShieldCheck className="size-5 text-good-text" />
+          </span>
+          <div>
+            <div className="card-title">Protected by Intercepta</div>
+            <div className="card-cap mt-0.5">Real-time onchain screening on every payment, before any USDC settles</div>
           </div>
-          <div className="card-cap mt-0.5">Every payer is screened before their payment is accepted</div>
         </div>
-        {off && (
+        {off ? (
           <span className="chip gap-1 text-ink-3">
             <ShieldOff className="size-3.5" /> Off
           </span>
+        ) : (
+          <a href={INTERCEPTA_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-ink-2 hover:text-ink">
+            intercepta.io <ArrowUpRight className="size-3.5" />
+          </a>
         )}
       </div>
 
@@ -163,7 +172,7 @@ export function ProtectionCard() {
       ) : off ? (
         <p className="text-sm text-ink-2">The gateway has no Intercepta API key yet, so payers and payouts aren’t screened.</p>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="relative grid grid-cols-1 gap-3 md:grid-cols-3">
           <div className="rounded-2xl bg-surface-2 p-3.5">
             <div className="flex items-center justify-between gap-2">
               <div className="text-xs text-ink-3">Your payout address</div>
@@ -185,6 +194,14 @@ export function ProtectionCard() {
               {first && first.blocked30d > 0 ? `$${first.blocked30dUsd} refused, never settled` : "Sanctioned and scam wallets are refused"}
             </div>
           </Link>
+          <div className="rounded-2xl bg-surface-2 p-3.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs text-ink-3">Before buyers sign</div>
+              <ScanSearch className="size-4 text-good-text" />
+            </div>
+            <div className="mt-1.5 text-sm font-medium">Pay page checks</div>
+            <div className="mt-1 text-xs text-ink-2">Your address, the token and each payment authorization are screened before a buyer’s wallet signs.</div>
+          </div>
         </div>
       )}
     </div>

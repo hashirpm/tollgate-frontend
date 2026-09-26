@@ -1,15 +1,18 @@
 "use client";
 
-import { Blocks, Bot, LayoutGrid, Menu, Plus, Receipt, X } from "lucide-react";
+import { Blocks, Bot, LayoutGrid, Menu, Plus, Receipt, ShieldCheck, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useState } from "react";
+import { usePayoutScreening } from "@/hooks/useScreening";
+import { INTERCEPTA_URL } from "@/lib/config";
+import { SellerIdentity } from "./Ens";
 import { Logo } from "./ui";
 import { WalletPill } from "./WalletPill";
 
 const NAV = [
   { to: "/dashboard", label: "Overview", Icon: LayoutGrid, end: true },
-  { to: "/endpoints", label: "Endpoints", Icon: Blocks, end: false },
+  { to: "/endpoints", label: "Listings", Icon: Blocks, end: false },
   { to: "/payments", label: "Payments", Icon: Receipt, end: false },
   { to: "/claude", label: "Use with Claude", Icon: Bot, end: false },
 ];
@@ -39,14 +42,37 @@ function Nav({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
+/** Live status of Intercepta screening, on every dashboard page. */
+function ScreeningStatus() {
+  const payout = usePayoutScreening();
+  const on = payout.data?.enabled;
+  return (
+    <a
+      href={INTERCEPTA_URL}
+      target="_blank"
+      rel="noreferrer"
+      className="flex items-center gap-2.5 rounded-2xl border border-good/25 bg-good/5 px-3 py-2.5 text-xs transition-colors hover:bg-good/10"
+    >
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-good/10">
+        <ShieldCheck className="size-4 text-good-text" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-medium text-ink">Secured by Intercepta</span>
+        <span className="block text-ink-3">{payout.isPending ? "Checking…" : on ? "Screening every payment" : "Screening is off"}</span>
+      </span>
+      <span className={`size-2 shrink-0 rounded-full ${on ? "bg-good" : "bg-ink-3"}`} aria-hidden />
+    </a>
+  );
+}
+
 function SidebarCard({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="relative overflow-hidden rounded-[18px] bg-surface-2 p-4">
       <div className="absolute -top-10 -right-10 size-28 rounded-full bg-lime/50 blur-2xl" />
-      <div className="relative text-sm font-medium">Sell another API</div>
-      <p className="relative mt-1 text-xs leading-relaxed text-ink-2">URL, key and price. Your key never reaches the buyer.</p>
+      <div className="relative text-sm font-medium">Credits to spare?</div>
+      <p className="relative mt-1 text-xs leading-relaxed text-ink-2">List another API key’s leftover credits. Your key never reaches the buyer.</p>
       <Link href="/endpoints/new" onClick={onNavigate} className="btn btn-primary relative mt-3 h-9 w-full text-[13px]">
-        <Plus className="size-4" /> Add endpoint
+        <Plus className="size-4" /> List credits
       </Link>
     </div>
   );
@@ -64,7 +90,9 @@ export function Layout({ children }: { children: ReactNode }) {
             <Logo />
           </Link>
           <Nav />
-          <div className="mt-auto">
+          <div className="mt-auto space-y-3">
+            <SellerIdentity />
+            <ScreeningStatus />
             <SidebarCard />
           </div>
         </div>
@@ -82,7 +110,9 @@ export function Layout({ children }: { children: ReactNode }) {
               </button>
             </div>
             <Nav onNavigate={() => setOpen(false)} />
-            <div className="mt-auto">
+            <div className="mt-auto space-y-3">
+              <SellerIdentity onNavigate={() => setOpen(false)} />
+              <ScreeningStatus />
               <SidebarCard onNavigate={() => setOpen(false)} />
             </div>
           </div>

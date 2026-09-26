@@ -142,6 +142,10 @@ export interface Endpoint {
   calls: number;
   incomeAtomic: bigint;
   createdAt: number | null;
+  /** ENSv2 name on Sepolia, set the first time the listing goes live (null if ENS is off). */
+  ensName: string | null;
+  /** Label the seller chose for that name ("elevenlabs"), "" when derived from the listing name. */
+  ensLabel: string;
 }
 
 /** Omit `value` on PATCH to keep the stored secret. */
@@ -163,6 +167,8 @@ export interface EndpointInput {
   body_overrides: Record<string, unknown> | null;
   max_body_bytes: number;
   screen_payers: boolean;
+  /** Label for the listing's ENS name, used when it first goes live; null derives it from the name. */
+  ens_label: string | null;
 }
 
 export type EndpointPatch = Partial<EndpointInput> & { status?: "active" | "paused" };
@@ -340,6 +346,33 @@ export interface CatalogItem {
   exampleBody: string;
   /** Intercepta's verdict on the seller's address, null when screening is off. */
   payToRisk: { verdict: Verdict; summary: string } | null;
+  /** ENSv2 name on Sepolia whose Base Sepolia address must equal payTo. */
+  ensName: string | null;
+  /** The seller's own ENS name (hashir.tollgate-x402.eth), when they claimed one. */
+  sellerEnsName: string | null;
+}
+
+/** The seller's ENS name: <handle>.<parent>, with a registry their listings are named in. */
+export interface SellerName {
+  handle: string;
+  ensName: string;
+  registry: string | null;
+  /** pending: being claimed; registered: sent on-chain (resolves a block or so later). */
+  status: "pending" | "registered";
+}
+
+export interface Me {
+  address: string;
+  name: SellerName | null;
+  /** null: the gateway doesn't name anything on ENS. */
+  ens: { parent: string } | null;
+}
+
+export interface NameCheck {
+  available: boolean;
+  name: string | null;
+  /** Why not: "taken", or a validation message. */
+  reason: string | null;
 }
 
 // ---------- normalizers ----------
@@ -422,6 +455,19 @@ function toEndpoint(r: Raw): Endpoint {
     calls: num(r.calls),
     incomeAtomic: big(r.income_atomic),
     createdAt: r.created_at == null ? null : toMs(r.created_at),
+    ensName: r.ens_name ? str(r.ens_name) : null,
+    ensLabel: str(r.ens_label),
+  };
+}
+
+function toSellerName(r: unknown): SellerName | null {
+  if (!r || typeof r !== "object") return null;
+  const n = r as Raw;
+  return {
+    handle: str(n.handle),
+    ensName: str(n.ens_name),
+    registry: n.registry ? str(n.registry) : null,
+    status: n.status === "pending" ? "pending" : "registered",
   };
 }
 
@@ -556,6 +602,8 @@ function toCatalogItem(r: Raw): CatalogItem {
     payToRisk: r.pay_to_risk && typeof r.pay_to_risk === "object"
       ? { verdict: verdictOf((r.pay_to_risk as Raw).verdict) ?? "warn", summary: str((r.pay_to_risk as Raw).summary) }
       : null,
+    ensName: r.ens_name ? str(r.ens_name) : null,
+    sellerEnsName: r.seller_ens_name ? str(r.seller_ens_name) : null,
   };
 }
 
@@ -576,7 +624,20 @@ export const api = {
   nonce: () => request<{ nonce: string }>("GET", "/api/auth/nonce", { auth: false }).then((r) => r.nonce),
   verify: (message: string, signature: string) =>
     request<{ token: string }>("POST", "/api/auth/verify", { auth: false, body: { message, signature } }).then((r) => r.token),
-  me: () => request<{ address: string }>("GET", "/api/me"),
+  me: () =>
+    request<Raw>("GET", "/api/me").then(
+      (r): Me => ({
+        address: str(r.address),
+        name: toSellerName(r.name),
+        ens: r.ens && typeof r.ens === "object" ? { parent: str((r.ens as Raw).parent) } : null,
+      }),
+    ),
+  checkName: (handle: string) =>
+    request<Raw>("GET", "/api/me/name/check", { query: { handle } }).then(
+      (r): NameCheck => ({ available: Boolean(r.available), name: r.name ? str(r.name) : null, reason: r.reason ? str(r.reason) : null }),
+    ),
+  claimName: (handle: string) =>
+    request<Raw>("POST", "/api/me/name", { body: { handle } }).then((r) => toSellerName(r.name)),
 
   stats: (range: "24h" | "30d", endpointId?: string) =>
     request<Raw>("GET", "/api/stats", { query: { range, endpoint_id: endpointId } }).then(toStats),

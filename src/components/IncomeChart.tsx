@@ -39,7 +39,7 @@ export function IncomeChart({
     <div className="card card-pad flex h-full flex-col">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="card-title">{metric === "income" ? "Income" : "Paid calls"}</div>
+          <div className="card-title">{metric === "income" ? "Earned" : "Calls sold"}</div>
           <div className="num mt-1 text-2xl font-semibold tracking-tight">
             {loading ? <Skeleton className="h-8 w-24" /> : metric === "income" ? usd(total) : total.toLocaleString()}
           </div>
@@ -49,7 +49,7 @@ export function IncomeChart({
           <div className="seg" role="tablist" aria-label="Metric">
             {(["income", "calls"] as Metric[]).map((m) => (
               <button key={m} role="tab" aria-selected={metric === m} data-active={metric === m} className="seg-btn" onClick={() => setMetric(m)}>
-                {m === "income" ? "Income" : "Calls"}
+                {m === "income" ? "Earned" : "Calls"}
               </button>
             ))}
           </div>
@@ -67,7 +67,7 @@ export function IncomeChart({
         {loading ? (
           <Skeleton className="h-full w-full" />
         ) : data.length === 0 ? (
-          <EmptyState title="No paid calls in this window">Income shows up here as soon as a buyer pays.</EmptyState>
+          <EmptyState title="No sales in this window">Earnings show up here as soon as an agent buys a call.</EmptyState>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 8, right: 4, bottom: 0, left: -8 }}>

@@ -16,7 +16,7 @@ import { usdc } from "@/lib/format";
 const STATUS: { id: CallStatus | undefined; label: string }[] = [
   { id: undefined, label: "All" },
   { id: "settled", label: "Settled" },
-  { id: "failed_upstream", label: "Failed upstream" },
+  { id: "failed_upstream", label: "Provider error" },
 ];
 
 export function PaymentsPage() {
@@ -37,7 +37,7 @@ export function PaymentsPage() {
 
   return (
     <>
-      <PageHeader title="Payments" sub="Every call through the gateway. Payers and transactions link to BaseScan." />
+      <PageHeader title="Payments" sub="Every call agents bought from your credits. Buyers and transactions link to BaseScan." />
 
       <div className="card overflow-hidden">
         <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
@@ -76,8 +76,8 @@ export function PaymentsPage() {
             </button>
           </div>
           {!blocked && (
-          <select className="input h-9 w-full sm:w-56" value={endpointId} onChange={(e) => setEndpointId(e.target.value)} aria-label="Filter by endpoint">
-            <option value="">All endpoints</option>
+          <select className="input h-9 w-full sm:w-56" value={endpointId} onChange={(e) => setEndpointId(e.target.value)} aria-label="Filter by listing">
+            <option value="">All listings</option>
             {endpoints.data?.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.name}
@@ -105,7 +105,7 @@ export function PaymentsPage() {
               ? "Every settled payment checked so far has a matching USDC transfer onchain."
               : endpointId || status
                 ? "Try clearing the filters."
-                : "Paid calls show up here once buyers start using your endpoints."}
+                : "Sales show up here once agents start buying your credits."}
           </EmptyState>
         ) : (
           <CallsTable rows={rows} />
