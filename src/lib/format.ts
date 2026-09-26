@@ -1,30 +1,55 @@
-import type { Chain } from "./types";
+import { BASESCAN, USDC_DECIMALS } from "./config";
 
-export function usd(n: number, dp = 2): string {
-  // Sums of float amounts land a hair either side of .xx5 depending on order;
-  // snap to 1e-6 first so the same total never prints two different ways.
-  n = Math.round(n * 1e6) / 1e6;
-  return `$${n.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
+const SCALE = 10n ** BigInt(USDC_DECIMALS);
+
+/** Atomic USDC units → a JS number of dollars (display only). */
+export function atomicToUsd(atomic: bigint): number {
+  const whole = atomic / SCALE;
+  const frac = atomic % SCALE;
+  return Number(whole) + Number(frac) / Number(SCALE);
 }
+
+/**
+ * "0.015" → 15000n, exactly (no float math). Returns null for anything that
+ * isn't a non-negative decimal with at most 6 fraction digits.
+ */
+export function usdToAtomic(input: string): bigint | null {
+  const s = input.trim();
+  if (!/^\d*(\.\d*)?$/.test(s) || s === "" || s === ".") return null;
+  const [w = "0", f = ""] = s.split(".");
+  if (f.length > USDC_DECIMALS) return null;
+  return BigInt(w || "0") * SCALE + BigInt((f + "0".repeat(USDC_DECIMALS)).slice(0, USDC_DECIMALS) || "0");
+}
+
+/** 15000n → "0.015" (trailing zeros trimmed, at least 2 dp). */
+export function atomicToInput(atomic: bigint): string {
+  const whole = atomic / SCALE;
+  const frac = (atomic % SCALE).toString().padStart(USDC_DECIMALS, "0").replace(/0+$/, "");
+  return `${whole}.${frac.padEnd(2, "0")}`;
+}
+
+/** Dollars with enough precision for sub-cent prices. */
+export function usd(n: number, dp?: number): string {
+  const digits = dp ?? (n !== 0 && Math.abs(n) < 0.1 ? 4 : 2);
+  const rounded = Math.round(n * 1e6) / 1e6;
+  return `$${rounded.toLocaleString("en-US", { minimumFractionDigits: Math.min(digits, 2), maximumFractionDigits: digits })}`;
+}
+
+export const usdc = (atomic: bigint, dp?: number) => usd(atomicToUsd(atomic), dp);
 
 export function compact(n: number): string {
   return n.toLocaleString("en-US", { notation: "compact", maximumFractionDigits: 1 });
 }
 
-export function pct(n: number, dp = 1): string {
-  return `${n >= 0 ? "+" : ""}${n.toFixed(dp)}%`;
-}
-
-export function shortAddr(a?: string): string {
-  if (!a) return "unknown";
-  if (!a.startsWith("0x") || a.length <= 13) return a; // agent names pass through
+export function shortAddr(a?: string | null): string {
+  if (!a) return "—";
+  if (!a.startsWith("0x") || a.length <= 13) return a;
   return `${a.slice(0, 6)}…${a.slice(-4)}`;
 }
 
-export const isAgent = (payer: string) => !payer.startsWith("0x");
-
-export function ago(t: number, now: number): string {
+export function ago(t: number, now = Date.now()): string {
   const s = Math.max(0, Math.floor((now - t) / 1000));
+  if (s < 5) return "just now";
   if (s < 60) return `${s}s ago`;
   const m = Math.floor(s / 60);
   if (m < 60) return `${m}m ago`;
@@ -33,49 +58,22 @@ export function ago(t: number, now: number): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-export function hostOf(upstream: string): string {
-  try {
-    return new URL(upstream).host;
-  } catch {
-    return upstream.replace(/^https?:\/\//, "").split("/")[0];
-  }
+export function clock(t: number): string {
+  return new Date(t).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
 }
 
-export function dayLabel(t: number): string {
-  return new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+export function dateTime(t: number): string {
+  return new Date(t).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
-/** A stable gradient per seed, so avatars stay recognizable across rows. */
+export const basescanTx = (hash: string) => `${BASESCAN}/tx/${hash}`;
+export const basescanAddress = (addr: string) => `${BASESCAN}/address/${addr}`;
+
+/** A stable gradient per seed, so the same payer/endpoint is recognizable across rows. */
 export function avatarGradient(seed: string): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   const a = h % 360;
   const b = (a + 120 + (h % 80)) % 360;
-  return `linear-gradient(135deg, oklch(0.62 0.18 ${a}), oklch(0.5 0.2 ${b}))`;
-}
-
-export const CHAIN_LABEL: Record<Chain, string> = {
-  hedera: "Hedera",
-  base: "Base",
-  solana: "Solana",
-};
-
-export const REASON_LABEL: Record<string, string> = {
-  insufficient_funds: "Insufficient funds",
-  invalid_signature: "Invalid signature",
-  quote_expired: "Quote expired",
-  bot_blocked: "Bot blocked",
-};
-
-/**
- * Categorical chart colors, one per API, in fixed order. Validated with the
- * dataviz palette checker against the dark card surface (#14161b): every
- * adjacent pair clears CVD ΔE 8 and normal-vision ΔE 15. Color follows the API,
- * never its rank, so filters never repaint a series.
- */
-export const SERIES = ["#9085e9", "#d95926", "#3987e5", "#c98500"] as const;
-
-export function laneColor(laneNames: string[], name: string): string {
-  const i = laneNames.indexOf(name);
-  return SERIES[(i < 0 ? 0 : i) % SERIES.length];
+  return `linear-gradient(135deg, oklch(0.66 0.17 ${a}), oklch(0.52 0.2 ${b}))`;
 }

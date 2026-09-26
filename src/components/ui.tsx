@@ -1,30 +1,40 @@
-import { ArrowDownRight, ArrowUpRight, CircleCheck, CircleX, Loader } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
-import { avatarGradient, CHAIN_LABEL, isAgent, REASON_LABEL, shortAddr } from "@/lib/format";
-import type { Chain, Payment, Tier } from "@/lib/types";
+import { avatarGradient } from "@/lib/format";
 
-export function Logo({ className = "" }: { className?: string }) {
+/** Tollgate mark: a toll boom barrier on a lime tile. */
+export function LogoMark({ size = 36 }: { size?: number }) {
   return (
-    <div className={`flex items-center gap-2.5 ${className}`}>
-      <div className="grid size-9 place-items-center rounded-xl bg-lime text-lime-ink">
-        <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-          <path d="M5 5l14 14M19 5L5 19" />
-        </svg>
-      </div>
+    <svg viewBox="0 0 32 32" width={size} height={size} aria-hidden className="shrink-0">
+      <rect width="32" height="32" rx="9" fill="#c6f432" />
+      <rect x="7.25" y="12" width="3.5" height="11.5" rx="1" fill="#10130a" />
+      <rect x="5" y="22.5" width="8" height="3" rx="1.5" fill="#10130a" />
+      <path d="M9 9.25h16.25a2.25 2.25 0 0 1 0 4.5H9z" fill="#10130a" />
+      <path d="M14.2 9.25h2.9l-2.3 4.5h-2.9zM20.2 9.25h2.9l-2.3 4.5h-2.9z" fill="#c6f432" />
+      <circle cx="9" cy="11.5" r="3.4" fill="#10130a" />
+      <circle cx="9" cy="11.5" r="1.25" fill="#c6f432" />
+    </svg>
+  );
+}
+
+export function Logo({ sub = true }: { sub?: boolean }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <LogoMark />
       <div className="leading-tight">
-        <div className="text-[15px] font-semibold tracking-tight">x402 Maker</div>
-        <div className="text-[11px] text-ink-3">machine payments</div>
+        <div className="text-[16px] font-semibold tracking-tight">Tollgate</div>
+        {sub && <div className="text-[11px] text-ink-3">x402 payments on Base</div>}
       </div>
     </div>
   );
 }
 
-export function PageHeader({ title, sub, children }: { title: string; sub?: ReactNode; children?: ReactNode }) {
+export function PageHeader({ title, sub, children }: { title: ReactNode; sub?: ReactNode; children?: ReactNode }) {
   return (
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div>
+      <div className="min-w-0">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-[28px]">{title}</h1>
-        {sub && <p className="mt-1 text-sm text-ink-2">{sub}</p>}
+        {sub && <div className="mt-1 text-sm text-ink-2">{sub}</div>}
       </div>
       {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
     </div>
@@ -36,147 +46,84 @@ export function Avatar({ seed, size = 32 }: { seed: string; size?: number }) {
     <div
       aria-hidden
       className="shrink-0 rounded-full ring-2 ring-surface"
-      style={{ width: size, height: size, background: avatarGradient(seed) }}
+      style={{ width: size, height: size, background: avatarGradient(seed.toLowerCase()) }}
     />
   );
 }
 
-export function Payer({ id }: { id: string }) {
-  const agent = isAgent(id);
+export function LiveDot() {
+  return <span className="inline-block size-2 shrink-0 animate-pulse-dot rounded-full bg-lime" />;
+}
+
+export function Spinner({ className = "size-4" }: { className?: string }) {
+  return <Loader2 className={`animate-spin ${className}`} aria-label="Loading" />;
+}
+
+export function Skeleton({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse rounded-lg bg-surface-3 ${className}`} />;
+}
+
+export function EmptyState({ icon, title, children, action }: { icon?: ReactNode; title: string; children?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex min-w-0 items-center gap-3">
-      <Avatar seed={id} />
-      <div className="min-w-0">
-        <div className={`truncate text-sm text-ink ${agent ? "" : "font-mono text-[13px]"}`}>{agent ? id : shortAddr(id)}</div>
-        <div className="text-xs text-ink-3">{agent ? "AI agent" : "wallet"}</div>
-      </div>
+    <div className="flex flex-col items-center px-6 py-14 text-center">
+      {icon && <div className="mb-4 grid size-12 place-items-center rounded-2xl bg-surface-2 text-ink-2">{icon}</div>}
+      <div className="text-base font-medium">{title}</div>
+      {children && <div className="mt-1 max-w-sm text-sm text-ink-2">{children}</div>}
+      {action && <div className="mt-5">{action}</div>}
     </div>
   );
 }
 
-const CHAIN_DOT: Record<Chain, string> = {
-  hedera: "bg-ink",
-  base: "bg-[#3987e5]",
-  solana: "bg-[#9085e9]",
-};
-
-export function ChainBadge({ chain }: { chain: Chain }) {
+export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+  const msg = error instanceof Error ? error.message : "Something went wrong.";
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-2.5 py-1 text-xs text-ink-2">
-      <span className={`size-1.5 rounded-full ${CHAIN_DOT[chain]}`} />
-      {CHAIN_LABEL[chain]}
-    </span>
+    <div className="flex items-start gap-3 rounded-2xl border border-bad/25 bg-bad/5 p-4 text-sm">
+      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-bad-text" />
+      <div className="min-w-0 flex-1">
+        <div className="font-medium text-bad-text">Couldn't load this</div>
+        <div className="mt-0.5 break-words text-ink-2">{msg}</div>
+      </div>
+      {onRetry && (
+        <button className="btn btn-ghost btn-sm" onClick={onRetry}>
+          Retry
+        </button>
+      )}
+    </div>
   );
 }
 
-const TIER_STYLE: Record<Tier, { label: string; cls: string }> = {
-  human: { label: "Human ✓", cls: "bg-lime/12 text-lime" },
-  bot: { label: "Bot", cls: "bg-violet/15 text-[#b9b1f5]" },
-  anon: { label: "Anon", cls: "bg-surface-3 text-ink-2" },
-};
-
-export function TierBadge({ tier }: { tier: Tier }) {
-  const s = TIER_STYLE[tier];
-  return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${s.cls}`}>{s.label}</span>;
-}
-
-/** Status never rides on color alone: icon + label, always. */
-export function StatusBadge({ p }: { p: Pick<Payment, "status" | "reason"> }) {
-  if (p.status === "settled")
-    return (
-      <span className="inline-flex items-center gap-1.5 text-xs text-good-text">
-        <CircleCheck className="size-3.5" /> Settled
-      </span>
-    );
-  if (p.status === "pending")
-    return (
-      <span className="inline-flex items-center gap-1.5 text-xs text-warn">
-        <Loader className="size-3.5 animate-spin" /> Settling…
-      </span>
-    );
-  return (
-    <span className="inline-flex items-center gap-1.5 text-xs text-bad-text" title={p.reason}>
-      <CircleX className="size-3.5" /> {REASON_LABEL[p.reason ?? ""] ?? "Failed"}
-    </span>
-  );
-}
-
-export function Delta({ value, className = "" }: { value: number; className?: string }) {
-  const up = value >= 0;
-  const Icon = up ? ArrowUpRight : ArrowDownRight;
-  return (
-    <span
-      className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium num ${
-        up ? "bg-good/15 text-good-text" : "bg-bad/15 text-bad-text"
-      } ${className}`}
-    >
-      <Icon className="size-3.5" />
-      {Math.abs(value).toFixed(1)}%
-    </span>
-  );
-}
-
-export function LiveDot() {
-  return <span className="inline-block size-2 animate-pulse-dot rounded-full bg-lime" />;
-}
-
-/** Tiny single-series trend line for stat tiles. */
-export function Sparkline({
-  data,
-  color = "var(--color-lime)",
-  width = 120,
-  height = 36,
-  fill = true,
-  fluid = true,
-}: {
-  data: number[];
-  color?: string;
-  width?: number;
-  height?: number;
-  fill?: boolean;
-  fluid?: boolean; // stretch to the container's width
-}) {
-  if (data.length < 2) return null;
+/** Tiny single-series trend line for KPI tiles. Stretches to its container. */
+export function Sparkline({ data, color = "var(--color-chart)", height = 36 }: { data: number[]; color?: string; height?: number }) {
+  if (data.length < 2) return <div style={{ height }} />;
+  const width = 120;
   const max = Math.max(...data);
   const min = Math.min(...data);
   const span = max - min || 1;
   const pts = data.map((v, i) => [(i / (data.length - 1)) * width, height - 3 - ((v - min) / span) * (height - 6)]);
   const line = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
-  const id = `spark-${color.replace(/[^a-z0-9]/gi, "")}-${data.length}-${Math.round(data[data.length - 1] * 1000)}`;
+  const id = `spark-${height}-${data.length}-${Math.round(max * 100)}`;
   return (
-    <svg
-      width="100%"
-      height={height}
-      viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio="none"
-      className="block overflow-visible"
-      style={{ maxWidth: fluid ? undefined : width }}
-      aria-hidden
-    >
-      {fill && (
-        <>
-          <defs>
-            <linearGradient id={id} x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity="0.28" />
-              <stop offset="100%" stopColor={color} stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <path d={`${line} L${width},${height} L0,${height} Z`} fill={`url(#${id})`} />
-        </>
-      )}
-      <path
-        d={line}
-        fill="none"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-      />
+    <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="block" aria-hidden>
+      <defs>
+        <linearGradient id={id} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.22" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={`${line} L${width},${height} L0,${height} Z`} fill={`url(#${id})`} />
+      <path d={line} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
 
-export function EmptyState({ children }: { children: ReactNode }) {
-  return <div className="card card-pad text-center text-sm text-ink-2">{children}</div>;
+export function Field({ label, hint, error, children, htmlFor }: { label: string; hint?: ReactNode; error?: string | null; children: ReactNode; htmlFor?: string }) {
+  return (
+    <div>
+      <label className="label" htmlFor={htmlFor}>
+        {label}
+      </label>
+      {children}
+      {error ? <div className="mt-1.5 text-xs text-bad-text">{error}</div> : hint ? <div className="hint">{hint}</div> : null}
+    </div>
+  );
 }

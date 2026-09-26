@@ -1,61 +1,84 @@
-# x402 Maker — dashboard
+# Tollgate — seller dashboard
 
-Seller dashboard for x402-ified APIs: income, payments, analytics, and pricing
-rules across every API you've wrapped with `npx x402ify`. Modeled on the
-[GlassBox402](https://github.com/dhernz/Glassbox402) dashboard, rebuilt on
-Next.js 16 (App Router) + Tailwind v4 + Recharts.
+Put any HTTP API behind x402 pay-per-call. Sellers connect a wallet, add an
+endpoint (URL + key + price), test it, and watch paid calls arrive live with
+BaseScan links while their USDC balance grows. Settles in USDC on Base Sepolia.
 
-**All data is hardcoded for now.** The backend is being built separately.
+Buyers (Claude via MCP) never use this UI; the only buyer-facing page is
+**Use with Claude**.
+
+Vite + React 19 + TypeScript · wagmi v2 + viem · TanStack Query · react-router 7
+· Tailwind v4 · Recharts.
 
 ## Run
 
 ```bash
 bun install
-bun dev          # http://localhost:3000
-bun run build    # production build
+bun dev            # http://localhost:5173, proxies /api /x /catalog → wrangler dev on :8787
+                   # (override the target with WORKER_URL=http://host:port bun dev)
+bun run build      # type-check + build to dist/
+bun run lint
 ```
 
-## Routes
+The dashboard talks to the gateway Worker (Hono + D1) and nothing else, apart
+from reading the USDC balance from Base Sepolia. Start `wrangler dev` first.
 
-| Route | What it shows |
+## Hosting
+
+The Worker serves `dist/` via Workers Static Assets, so everything is
+same-origin (no CORS, one deploy). In the Worker's `wrangler.jsonc`, point
+`assets.directory` at this repo's `dist/`:
+
+```jsonc
+"assets": {
+  "directory": "<path-to-this-repo>/dist",
+  "binding": "ASSETS",
+  "not_found_handling": "single-page-application",
+  "run_worker_first": ["/api/*", "/x/*", "/catalog"]
+}
+```
+
+Deploy = `bun run build`, then `wrangler deploy`.
+
+## Pages
+
+| Route | |
 | --- | --- |
-| `/` | Landing / connect-wallet gate |
-| `/dashboard` | Overview: KPIs, income chart, income by API, recent payments, wallet, connect-an-API |
-| `/dashboard/apis` | One card per wrapped API: income, calls, price, 14-day trend, pricing rules |
-| `/dashboard/payments` | Every payment, filterable by status / tier / API, searchable |
-| `/dashboard/analytics` | Calls by endpoint, hour of day, country, top payers, caller tiers, per API |
-| `/dashboard/features` | Per-API pricing rules: World ID human pricing, bot multiplier, streaming, dynamic pricing |
-| `/dashboard/settings` | Payout wallet, network, facilitator, credentials |
+| `/` | Connect wallet → switch to Base Sepolia → Sign-In With Ethereum |
+| `/dashboard` | KPIs (income, paid calls, failed upstream, unique payers, wallet USDC), income/calls chart (24h hourly / 30d daily), live feed (polls every 2s) |
+| `/endpoints` | Table with status, calls, income, paid URL; pause / activate / edit / delete |
+| `/endpoints/new`, `/endpoints/:id/edit` | Form (basics, auth, static headers, price, example request, guards) → **Test** step; a 2xx makes it active |
+| `/endpoints/:id` | Endpoint KPIs, chart, recent calls, paid URL, `curl -i` 402 snippet, `paid_fetch` snippet |
+| `/payments` | Full history, paged with `before=`, filter by endpoint and status |
+| `/claude` | `claude mcp add` command, `.mcp.json`, env vars, faucet link, live `/catalog` preview |
 
-## Wiring the backend
+## Auth
 
-Every page reads through **`src/lib/data.ts`** and nothing else. The functions
-are already `async`, so swapping mocks for the hub is a body-only change:
+1. Connect (injected / EIP-6963 wallets, or Coinbase Wallet). Wrong chain → switch prompt.
+2. `GET /api/auth/nonce` → SIWE message via viem `createSiweMessage` (domain `location.host`, chain 84532) → `signMessage` → `POST /api/auth/verify` → `{ token }`.
+3. Token stored in `localStorage` under `tollgate:token:<address>`, sent as `Authorization: Bearer`.
+4. A 401, an account change or a chain change clears it and returns to sign-in. Disconnect clears it.
 
-| Function | Hub endpoint (GlassBox402 equivalent) |
-| --- | --- |
-| `getLanes()` | `GET /lanes` |
-| `getPayments()` | payments joined from the event stream (`settled` + receipts) |
-| `getAnalytics()` | `GET /analytics?lanes=…` |
-| `getDailySeries()`, `getKpis()`, `getApiStats()` | derived from payments (or a new hub endpoint) |
-| `getPolicies()` | `GET /policy/:lane` |
-| `getAccount()` | `POST /account` + mirror-node balance |
+## API contract
 
-Types in `src/lib/types.ts` mirror the hub's shapes. The two client-side
-placeholders to replace are:
+Everything the dashboard assumes about the Worker lives in **`src/lib/api.ts`**,
+including field names the frontend plan doesn't pin down. Each response goes
+through a normalizer there, so if the Worker names a field differently, fix it in
+that one file. Assumptions worth checking against the backend:
 
-- `src/components/test-buyer-button.tsx` → `POST /testbuyer`
-- `src/components/features-view.tsx` (`update`) → `POST /policy/:lane`
+- Endpoints: `GET/POST /api/endpoints`, `GET/PATCH/DELETE /api/endpoints/:id`,
+  `POST /api/endpoints/:id/test` → `{ ok, status, body }`. Pause/activate is
+  `PATCH { status }`. The secret is sent as `auth_value` (omitted to keep the
+  stored one); responses expose only `has_auth_value`. Price is `price_atomic`
+  (integer string, 6 decimals).
+- Stats: `GET /api/stats?range=24h|30d&endpoint_id=` → `{ income_atomic, paid_calls,
+  failed_calls, unique_payers, series: [{ bucket, income_atomic, calls }] }`.
+- Feed: `GET /api/feed?since|before|endpoint_id|status|limit` → rows with `id, ts,
+  endpoint_id, endpoint_name, payer, amount_atomic, status (settled | failed_upstream),
+  tx_hash`. `ts` is passed back verbatim as the cursor (seconds, ms or ISO all work).
+- Lists may be bare arrays or wrapped (`{ endpoints: [...] }`, `{ calls: [...] }`).
 
-Mock data lives in `src/lib/mock-data.ts`. It is generated from a fixed seed
-and a fixed clock (`NOW`), so server and client render identically. Delete it
-once the hub is connected.
+## Config
 
-## Design notes
-
-- Dark bento-grid layout, one neon-lime accent (`--color-lime`), violet as the
-  secondary. Tokens are in `src/app/globals.css` under `@theme`.
-- Per-API chart colors (`SERIES` in `src/lib/format.ts`) are a fixed-order
-  palette validated for color-vision deficiency on the dark card surface. Color
-  follows the API, never its rank.
-- Status (settled / settling / failed) always pairs an icon with a label.
+`VITE_MCP_COMMAND` (see `.env.example`): how buyers launch the MCP server. It fills
+in the snippets on **Use with Claude**. Until it's set, that page shows a notice.

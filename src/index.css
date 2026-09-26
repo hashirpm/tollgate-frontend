@@ -1,0 +1,174 @@
+@import "tailwindcss";
+
+/*
+  Tollgate design tokens. Light bento-style fintech look: soft grey canvas,
+  white raised cards, one lime accent used as a fill (never as text on white).
+  Raw values live on :root; @theme maps them to Tailwind utilities
+  (bg-surface, text-ink-2, border-line, ...).
+*/
+
+:root {
+  color-scheme: light;
+  --canvas: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #f0f1f4;
+  --surface-3: #e4e6eb;
+  --line: rgb(15 18 25 / 0.08);
+  --line-strong: rgb(15 18 25 / 0.14);
+  --ink: #0e1116;
+  --ink-2: #4b5160;
+  --ink-3: #767c8c;
+  --accent-text: #4d7c0f; /* lime is a fill; this is its readable text/line form */
+  --chart: #4d7c0f;
+  --good-text: #15803d;
+  --bad-text: #b91c1c;
+  --warn-text: #a16207;
+  --card-shadow: 0 1px 2px rgb(15 18 25 / 0.04), 0 12px 32px -20px rgb(15 18 25 / 0.18);
+  --glow-a: rgb(144 133 233 / 0.10);
+  --glow-b: rgb(198 244 50 / 0.12);
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-accent: var(--accent-text);
+  --color-chart: var(--chart);
+  --color-good-text: var(--good-text);
+  --color-bad-text: var(--bad-text);
+  --color-warn-text: var(--warn-text);
+}
+
+@theme {
+  /* fixed in both themes */
+  --color-lime: #c6f432;
+  --color-lime-deep: #b3e01c;
+  --color-lime-ink: #10130a;
+  --color-violet: #8b7cf0;
+  --color-good: #0ca30c;
+  --color-warn: #fab219;
+  --color-bad: #d03b3b;
+
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+
+  --radius-card: 22px;
+
+  --animate-pulse-dot: pulse-dot 1.6s ease-out infinite;
+  --animate-fade-up: fade-up 0.3s ease-out both;
+  --animate-flash: flash 2.4s ease-out both;
+
+  @keyframes pulse-dot {
+    0% { box-shadow: 0 0 0 0 rgb(198 244 50 / 0.55); }
+    100% { box-shadow: 0 0 0 8px rgb(198 244 50 / 0); }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
+  /* a newly arrived feed row glows lime, then settles */
+  @keyframes flash {
+    0% { background-color: rgb(198 244 50 / 0.22); }
+    100% { background-color: transparent; }
+  }
+}
+
+html,
+body {
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  background-image:
+    radial-gradient(900px 480px at 85% -10%, var(--glow-a), transparent 60%),
+    radial-gradient(700px 420px at 10% -12%, var(--glow-b), transparent 60%);
+  background-attachment: fixed;
+}
+
+::selection {
+  background: rgb(198 244 50 / 0.35);
+}
+
+@layer components {
+  .card {
+    @apply rounded-[var(--radius-card)] border border-line bg-surface;
+    box-shadow: var(--card-shadow);
+  }
+  .card-pad {
+    @apply p-5 sm:p-6;
+  }
+  .card-title {
+    @apply text-[15px] font-medium text-ink;
+  }
+  .card-cap {
+    @apply text-xs text-ink-3;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+  .btn {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-sm font-medium whitespace-nowrap transition-colors
+      focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-lime text-lime-ink hover:bg-lime-deep;
+  }
+  .btn-ghost {
+    @apply border border-line-strong bg-surface-2 text-ink hover:bg-surface-3;
+  }
+  .btn-danger {
+    @apply bg-bad text-white hover:bg-bad/90;
+  }
+  .btn-sm {
+    @apply h-8 px-3 text-xs;
+  }
+  .chip {
+    @apply inline-flex h-8 items-center gap-1.5 rounded-full border border-line px-3 text-[13px] text-ink-2 transition-colors
+      hover:border-line-strong hover:text-ink;
+  }
+  .chip[data-active="true"] {
+    @apply border-transparent bg-ink text-canvas;
+  }
+  .input {
+    @apply h-10 w-full rounded-xl border border-line-strong bg-surface-2 px-3.5 text-sm text-ink outline-none transition-colors
+      placeholder:text-ink-3 focus:border-accent;
+  }
+  .input[aria-invalid="true"] {
+    @apply border-bad;
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-ink;
+  }
+  .hint {
+    @apply mt-1.5 text-xs text-ink-3;
+  }
+  .trow {
+    @apply grid items-center gap-4 border-t border-line px-5 py-3.5 text-sm sm:px-6;
+  }
+  .thead-row {
+    @apply grid items-center gap-4 px-5 pb-3 text-xs font-medium tracking-wide text-ink-3 uppercase sm:px-6;
+  }
+  .seg {
+    @apply flex rounded-full bg-surface-2 p-1;
+  }
+  .seg-btn {
+    @apply h-7 rounded-full px-3 text-xs text-ink-3 transition-colors hover:text-ink;
+  }
+  .seg-btn[data-active="true"] {
+    @apply bg-surface text-ink shadow-sm;
+  }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
