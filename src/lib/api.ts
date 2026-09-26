@@ -217,6 +217,13 @@ export interface CatalogItem {
   method: string;
   url: string;
   priceUsd: number | null;
+  priceAtomic: bigint;
+  /** The seller's wallet; a quote paying anyone else is refused. */
+  payTo: string;
+  acceptsBody: boolean;
+  exampleQuery: string;
+  /** Pretty-printed JSON text, "" when unset. */
+  exampleBody: string;
 }
 
 // ---------- normalizers ----------
@@ -345,6 +352,11 @@ function toCatalogItem(r: Raw): CatalogItem {
     method: str(r.method, "GET"),
     url: str(r.url ?? r.paid_url),
     priceUsd,
+    priceAtomic: big(r.price_atomic),
+    payTo: str(r.pay_to),
+    acceptsBody: r.accepts_body == null ? !["GET", "HEAD"].includes(str(r.method, "GET").toUpperCase()) : Boolean(r.accepts_body),
+    exampleQuery: str((r.example as Raw | undefined)?.query),
+    exampleBody: jsonText((r.example as Raw | undefined)?.body),
   };
 }
 

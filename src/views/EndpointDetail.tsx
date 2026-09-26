@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ArrowLeft, CircleDollarSign, Pause, Pencil, Play, Users, Zap } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowUpRight, CircleDollarSign, Pause, Pencil, Play, Users, Zap } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -87,6 +87,16 @@ export function EndpointDetailPage() {
           <div>
             <div className="label">Paid URL</div>
             <CopyUrl url={url} />
+            <p className="hint">
+              Opened in a browser, it shows a pay page.{" "}
+              {e.status === "active" ? (
+                <a href={`/pay/${e.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 font-medium text-accent-text underline-offset-2 hover:underline">
+                  Try it <ArrowUpRight className="size-3" />
+                </a>
+              ) : (
+                "Available once the endpoint is active."
+              )}
+            </p>
           </div>
           <div>
             <div className="label">See the 402 quote</div>

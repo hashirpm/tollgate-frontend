@@ -54,6 +54,11 @@ live in the browser, and the app renders once it's mounted (see
 | `/endpoints/:id` | Endpoint KPIs, chart, recent calls, paid URL, `curl -i` 402 snippet, `paid_fetch` snippet |
 | `/payments` | Full history, paged with `before=`, filter by endpoint and status |
 | `/claude` | `claude mcp add` command, `.mcp.json`, env vars, faucet link, live `/catalog` preview |
+| `/pay/:id` | Public buyer page: connect wallet, edit the example request, pay with x402 (EIP-712 USDC authorization, no gas), see the response (JSON, text, audio, image) and the BaseScan receipt. Refuses a quote above the catalog price or to another address |
+
+Opening a paid URL (`/x/:id`) in a browser redirects to `/pay/:id` with its query
+string; API clients and the pay page's own `fetch()` are proxied to the gateway as
+usual.
 
 ## Auth
 
