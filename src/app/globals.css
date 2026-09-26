@@ -1,0 +1,124 @@
+@import "tailwindcss";
+
+/*
+  Design tokens. Dark bento-style fintech look: near-black canvas, soft
+  raised cards, one neon-lime brand accent, violet as the quiet second voice.
+  Chart series colors live in src/lib/format.ts (validated palette).
+*/
+@theme {
+  --color-canvas: #0b0c10;
+  --color-surface: #14161b;
+  --color-surface-2: #1b1e25;
+  --color-surface-3: #23262f;
+  --color-line: rgb(255 255 255 / 0.07);
+  --color-line-strong: rgb(255 255 255 / 0.12);
+
+  --color-ink: #f4f5f7;
+  --color-ink-2: #a4a8b4;
+  --color-ink-3: #6c7180;
+
+  --color-lime: #c6f432;
+  --color-lime-deep: #a6d20f;
+  --color-lime-ink: #10130a;
+  --color-violet: #9085e9;
+
+  /* status: fixed, always paired with an icon + label */
+  --color-good: #0ca30c;
+  --color-good-text: #4ade80;
+  --color-warn: #fab219;
+  --color-bad: #d03b3b;
+  --color-bad-text: #f87171;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --radius-card: 22px;
+
+  --animate-pulse-dot: pulse-dot 1.6s ease-out infinite;
+  --animate-fade-up: fade-up 0.35s ease-out both;
+
+  @keyframes pulse-dot {
+    0% { box-shadow: 0 0 0 0 rgb(198 244 50 / 0.55); }
+    100% { box-shadow: 0 0 0 8px rgb(198 244 50 / 0); }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  /* a faint lime/violet glow in the top corners, the Dribbble-style ambient light */
+  background-image:
+    radial-gradient(900px 480px at 85% -10%, rgb(144 133 233 / 0.10), transparent 60%),
+    radial-gradient(700px 420px at 10% -12%, rgb(198 244 50 / 0.06), transparent 60%);
+  background-attachment: fixed;
+}
+
+::selection {
+  background: rgb(198 244 50 / 0.3);
+}
+
+@layer components {
+  .card {
+    @apply rounded-[var(--radius-card)] border border-line bg-surface;
+    box-shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 20px 40px -24px rgb(0 0 0 / 0.6);
+  }
+  .card-pad {
+    @apply p-5 sm:p-6;
+  }
+  .card-title {
+    @apply text-[15px] font-medium text-ink;
+  }
+  .card-cap {
+    @apply text-xs text-ink-3;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+  .btn {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-sm font-medium transition-colors
+      focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-lime text-lime-ink hover:bg-lime-deep;
+  }
+  .btn-ghost {
+    @apply border border-line-strong bg-surface-2 text-ink hover:bg-surface-3;
+  }
+  .chip {
+    @apply inline-flex h-8 items-center gap-1.5 rounded-full border border-line px-3 text-[13px] text-ink-2 transition-colors
+      hover:border-line-strong hover:text-ink;
+  }
+  .chip[data-active="true"] {
+    @apply border-transparent bg-ink text-canvas;
+  }
+  .input {
+    @apply h-10 w-full rounded-full border border-line-strong bg-surface-2 px-4 text-sm text-ink outline-none
+      placeholder:text-ink-3 focus:border-lime/60;
+  }
+  .trow {
+    @apply grid items-center gap-4 border-t border-line px-5 py-3.5 text-sm sm:px-6;
+  }
+  .thead-row {
+    @apply grid items-center gap-4 px-5 pb-3 text-xs font-medium tracking-wide text-ink-3 uppercase sm:px-6;
+  }
+}
+
+/* thin, quiet scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.12) transparent;
+}
