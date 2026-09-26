@@ -3,6 +3,7 @@
 import { Check, Zap } from "lucide-react";
 import { type PointerEvent, useRef, useState } from "react";
 import { avatarGradient } from "@/lib/format";
+import { TEMPLATES } from "@/lib/templates";
 import s from "./landing.module.css";
 
 // Illustrative traffic for the hero animation. Nothing here is real data.
@@ -10,6 +11,30 @@ const LANES = [
   { agent: "claude-agent", method: "POST", path: "/v1/text-to-speech", price: 0.03, ms: 412 },
   { agent: "video-agent", method: "POST", path: "/kling/text-to-video", price: 0.75, ms: 690 },
 ] as const;
+
+// Credits on sale around the scene: [template id, position, drift]
+const CHIPS = [
+  ["higgsfield-kling", "-top-8 right-8", s.chipA],
+  ["elevenlabs-tts", "-top-7 -left-6", s.chipB],
+  ["fal-flux", "-bottom-7 left-20", s.chipC],
+] as const;
+
+function CreditChip({ id, pos, drift }: { id: string; pos: string; drift: string }) {
+  const t = TEMPLATES.find((x) => x.id === id);
+  if (!t) return null;
+  return (
+    <div aria-hidden className={`absolute z-30 hidden items-center gap-2.5 rounded-2xl border border-line bg-surface/90 py-2 pr-3 pl-2 shadow-[0_14px_40px_-16px_rgb(15_18_25/0.35)] backdrop-blur xl:flex ${pos} ${drift}`}>
+      <span className="grid size-8 place-items-center rounded-lg text-[11px] font-semibold text-white" style={{ background: t.color }}>
+        {t.initials}
+      </span>
+      <span className="leading-tight">
+        <span className="block text-xs font-medium">{t.provider}</span>
+        <span className="block text-[10px] text-ink-3">{t.product}</span>
+      </span>
+      <span className="ml-1 rounded-full bg-lime/50 px-2 py-0.5 font-mono text-[10px] font-semibold text-lime-ink">${t.price}</span>
+    </div>
+  );
+}
 
 /**
  * The hero's centrepiece: two toll lanes. Agent requests drive up, the booth
@@ -39,13 +64,10 @@ export function TollScene() {
 
   return (
     <div className="relative">
+      {CHIPS.map(([id, pos, drift]) => (
+        <CreditChip key={id} id={id} pos={pos} drift={drift} />
+      ))}
       {/* floating accents behind the card */}
-      <div aria-hidden className={`absolute -top-6 -left-4 z-20 hidden rounded-2xl border border-line bg-surface px-3 py-2 shadow-lg sm:block ${s.float}`}>
-        <div className="text-[10px] tracking-wider text-ink-3 uppercase">HTTP</div>
-        <div className="font-mono text-sm font-semibold">
-          402 <span className="text-ink-3">→</span> <span className="text-good-text">200</span>
-        </div>
-      </div>
       <div aria-hidden className={`absolute -right-3 -bottom-5 z-20 hidden items-center gap-2 rounded-full border border-line bg-surface py-1.5 pr-3.5 pl-1.5 shadow-lg sm:flex ${s.floatSlow}`}>
         <span className="grid size-6 place-items-center rounded-full bg-[#2775ca] text-[11px] font-bold text-white">$</span>
         <span className="text-xs font-medium">USDC on Base</span>

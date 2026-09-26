@@ -565,6 +565,88 @@
   }
 }
 
+/* ---------- grid floor: the road into the toll ---------- */
+
+.floor {
+  position: absolute;
+  left: -40%;
+  right: -40%;
+  bottom: -4%;
+  height: 72%;
+  background-image:
+    linear-gradient(rgb(15 18 25 / 0.11) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(15 18 25 / 0.11) 1px, transparent 1px);
+  background-size: 72px 72px;
+  transform: perspective(560px) rotateX(62deg);
+  transform-origin: 50% 100%;
+  mask-image: linear-gradient(to top, #000 0%, rgb(0 0 0 / 0.6) 30%, transparent 75%);
+  animation: floor 4s linear infinite;
+}
+@keyframes floor {
+  to {
+    background-position: 0 72px;
+  }
+}
+
+/* ---------- a lime glow that follows the pointer ---------- */
+
+.spotlight {
+  background: radial-gradient(640px circle at var(--px, 72%) var(--py, 30%), rgb(198 244 50 / 0.2), transparent 62%);
+  transition: background 0.2s ease-out;
+}
+
+/* ---------- headline: slow shimmer through the rotating word ---------- */
+
+.gradText {
+  background-image: linear-gradient(100deg, #0e1116 0%, #4b5160 30%, #8b7cf0 55%, #4b5160 75%, #0e1116 100%);
+  background-size: 220% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: gradText 7s ease-in-out infinite alternate;
+}
+@keyframes gradText {
+  to {
+    background-position: 100% 0;
+  }
+}
+
+/* ---------- purchase ticker: one line at a time ---------- */
+
+.tick {
+  animation: tick 3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes tick {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+    filter: blur(4px);
+  }
+  12%,
+  86% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-10px);
+    filter: blur(4px);
+  }
+}
+
+/* ---------- provider chips drifting around the scene ---------- */
+
+.chipA {
+  animation: float 7s -1s ease-in-out infinite;
+}
+.chipB {
+  animation: float 9s -4s ease-in-out infinite;
+}
+.chipC {
+  animation: float 8s -6s ease-in-out infinite;
+}
+
 /* ---------- respect reduced motion: a still, readable frame ---------- */
 
 @media (prefers-reduced-motion: reduce) {

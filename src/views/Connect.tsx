@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowRight, ArrowUpRight, Bot, Check, KeyRound, Plus, ShieldCheck, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, Plus, ShieldCheck, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { type CSSProperties, type PointerEvent, useEffect, useRef, useState } from "react";
 import s from "@/components/landing/landing.module.css";
 import { TollScene } from "@/components/landing/TollScene";
 import { SignInPanel } from "@/components/SignInPanel";
@@ -12,6 +12,16 @@ import { CopyButton } from "@/components/CopyButton";
 import { CHAIN, CLAUDE_CODE_ADD, CLAUDE_CONNECTOR_LINK, INTERCEPTA_URL, MCP_URL } from "@/lib/config";
 
 const WORDS = ["API credits.", "voice credits.", "image credits.", "video credits."];
+
+// Illustrative purchases for the ticker. Nothing here is real data.
+const SALES = [
+  { agent: "claude-agent", what: "Kling video · 5s", price: "0.75" },
+  { agent: "podcast-bot", what: "ElevenLabs voice", price: "0.03" },
+  { agent: "research-agent", what: "Exa search", price: "0.01" },
+  { agent: "design-agent", what: "Higgsfield Soul image", price: "0.10" },
+  { agent: "notes-agent", what: "Deepgram transcript", price: "0.02" },
+  { agent: "claude-agent", what: "FLUX image", price: "0.01" },
+];
 
 export function ConnectPage() {
   const session = useSession();
@@ -33,8 +43,15 @@ export function ConnectPage() {
   // returning users with a wallet already connected just need to log in
   const cta = session.status === "signed-out" || session.status === "wrong-chain" ? "Log in to your dashboard" : "Log in";
 
+  // the backdrop glow follows the pointer
+  const onMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== "mouse") return;
+    e.currentTarget.style.setProperty("--px", `${e.clientX}px`);
+    e.currentTarget.style.setProperty("--py", `${e.clientY}px`);
+  };
+
   return (
-    <div className={`relative min-h-screen overflow-hidden ${s.motion}`}>
+    <div className={`relative min-h-screen overflow-hidden ${s.motion}`} onPointerMove={onMove}>
       <Backdrop />
 
       <div className="relative mx-auto flex min-h-screen max-w-[1280px] flex-col px-4 sm:px-8">
@@ -57,7 +74,7 @@ export function ConnectPage() {
         </header>
 
         <main className="grid flex-1 items-center gap-14 pt-8 pb-10 lg:grid-cols-[1.02fr_1fr] lg:gap-10 lg:pt-4">
-          <section>
+          <section className="min-w-0">
             <div className={s.rise} style={{ "--i": 0 } as CSSProperties}>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-2 rounded-full border border-line bg-surface/80 py-1 pr-3 pl-1 text-xs text-ink-2 shadow-sm backdrop-blur">
@@ -76,7 +93,7 @@ export function ConnectPage() {
               </div>
             </div>
 
-            <h1 className="mt-7 text-[44px] leading-[1.02] font-semibold tracking-[-0.035em] sm:text-[68px] xl:text-[76px]">
+            <h1 className="mt-7 text-[46px] leading-[1] font-semibold tracking-[-0.04em] sm:text-[68px] xl:text-[76px]">
               <span className={`block ${s.rise}`} style={{ "--i": 1 } as CSSProperties}>
                 Sell your <span className={s.marker}>leftover</span>
               </span>
@@ -84,7 +101,7 @@ export function ConnectPage() {
                 <span className={s.rotator}>
                   <span className={s.rotatorTrack}>
                     {[...WORDS, WORDS[0]].map((w, i) => (
-                      <span key={i} className="bg-linear-to-r from-ink via-ink-2 to-violet bg-clip-text text-transparent">
+                      <span key={i} className={s.gradText}>
                         {w}
                       </span>
                     ))}
@@ -111,23 +128,12 @@ export function ConnectPage() {
             </div>
             {claudeHelp && <AddToClaudeHelp />}
 
-            <ul className={`mt-10 flex flex-wrap gap-x-6 gap-y-3 text-sm text-ink-2 ${s.rise}`} style={{ "--i": 5 } as CSSProperties}>
-              {[
-                { Icon: ShieldCheck, t: "Screened by Intercepta" },
-                { Icon: KeyRound, t: "Key stays server-side" },
-                { Icon: Bot, t: "Agents buy via MCP" },
-              ].map(({ Icon, t }) => (
-                <li key={t} className="flex items-center gap-2">
-                  <span className="grid size-7 place-items-center rounded-lg border border-line bg-surface shadow-sm">
-                    <Icon className="size-3.5 text-accent" />
-                  </span>
-                  {t}
-                </li>
-              ))}
-            </ul>
+            <div className={`mt-10 ${s.rise}`} style={{ "--i": 5 } as CSSProperties}>
+              <SalesTicker />
+            </div>
           </section>
 
-          <section className={s.rise} style={{ "--i": 3 } as CSSProperties}>
+          <section className={`min-w-0 ${s.rise}`} style={{ "--i": 3 } as CSSProperties}>
             <TollScene />
           </section>
         </main>
@@ -139,9 +145,37 @@ export function ConnectPage() {
   );
 }
 
+/** One purchase at a time, each screened by Intercepta. */
+function SalesTicker() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setI((n) => (n + 1) % SALES.length), 3000);
+    return () => clearInterval(t);
+  }, []);
+  const sale = SALES[i];
+  return (
+    <div className="inline-flex max-w-full items-center gap-3 rounded-2xl border border-line bg-surface/80 py-2 pr-4 pl-2 shadow-sm backdrop-blur">
+      <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-ink">
+        <span className="size-2 animate-pulse-dot rounded-full bg-lime" />
+      </span>
+      <span key={i} className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm ${s.tick}`}>
+        <span className="font-mono text-xs text-ink-3">{sale.agent}</span>
+        <span className="text-ink-3">bought</span>
+        <span className="font-medium">{sale.what}</span>
+        <span className="rounded-full bg-lime/50 px-2 py-0.5 font-mono text-[11px] font-semibold text-lime-ink">${sale.price}</span>
+        <span className="inline-flex items-center gap-1 text-xs text-good-text">
+          <ShieldCheck className="size-3.5" /> screened by Intercepta
+        </span>
+      </span>
+    </div>
+  );
+}
+
 function Backdrop() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0">
+      <div className={`absolute inset-0 ${s.spotlight}`} />
+      <div className={s.floor} />
       <div className={`absolute inset-0 ${s.dots}`} />
       <div className={`absolute -top-40 -left-32 size-[560px] rounded-full bg-lime/45 ${s.blobA}`} />
       <div className={`absolute top-10 right-[-12%] size-[620px] rounded-full bg-violet/30 ${s.blobB}`} />
